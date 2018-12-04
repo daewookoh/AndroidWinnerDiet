@@ -19,6 +19,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.provider.MediaStore;
 import android.provider.Settings;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.view.ViewCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -37,6 +38,24 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import com.facebook.share.widget.ShareDialog;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.fitness.FitnessOptions;
+import com.google.android.gms.fitness.data.Bucket;
+import com.google.android.gms.fitness.data.DataPoint;
+import com.google.android.gms.fitness.data.DataSet;
+import com.google.android.gms.fitness.data.DataSource;
+import com.google.android.gms.fitness.data.DataType;
+import com.google.android.gms.fitness.data.Field;
+import com.google.android.gms.fitness.request.DataReadRequest;
+import com.google.android.gms.fitness.result.DailyTotalResult;
+import com.google.android.gms.fitness.result.DataReadResponse;
+import com.google.android.gms.fitness.result.DataReadResult;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.kakao.auth.AuthType;
 import com.kakao.auth.ISessionCallback;
@@ -60,11 +79,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static android.content.ContentValues.TAG;
+
+import com.google.android.gms.fitness.Fitness;
 
 public class MainActivity extends Activity {
 
@@ -74,11 +99,16 @@ public class MainActivity extends Activity {
     public static Context mContext;
     Common common = new Common(this);
 
+    /*
     //만보기
     BroadcastReceiver receiver;
     String serviceData;
     Intent manboService;
     String step_record_date;
+    */
+
+    //구글피트니스
+    private static final int GOOGLE_FIT_PERMISSIONS_REQUEST_CODE = 0x1001;
 
     //네이버로그인
     public static OAuthLogin mOAuthLoginModule;
@@ -148,6 +178,8 @@ public class MainActivity extends Activity {
         Session.getCurrentSession().addCallback(callback);
     }
 
+    /*
+    //만보기
     class PlayingReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -168,7 +200,7 @@ public class MainActivity extends Activity {
 
         }
     }
-
+    */
 
     public void setWebview(final WebView webView)
     {
@@ -232,8 +264,7 @@ public class MainActivity extends Activity {
                 progressBar.setVisibility(View.INVISIBLE);
                 refreshLayout.setRefreshing(false);
 
-                common.log(url.toString());
-                if(url.endsWith(String.valueOf(R.string.default_url)))
+                if(url.endsWith(getResources().getString(R.string.default_url)))
                 {
                     refreshLayout.setEnabled(false);
                 }
@@ -241,24 +272,12 @@ public class MainActivity extends Activity {
                 {
                     refreshLayout.setEnabled(true);
                 }
-/*
+
                 if(url.contains("/step.php"))
                 {
-                    try {
-                        String step_data = makeStepData();
-                        common.log(step_data);
-
-                        String data = "act=setStepInfo&step_data="+step_data;
-                        String enc_data = Base64.encodeToString(data.getBytes(), 0);
-                        common.log("jsNativeToServer(enc_data) : step_data");
-                        webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
-
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-
+                    checkGoogleFit();
                 }
-*/
+
                 sendDeviceInfo();
 
             }
@@ -291,33 +310,9 @@ public class MainActivity extends Activity {
         webView.addJavascriptInterface(new JavaScriptInterface(), getResources().getString(R.string.js_name));
 
     }
-/*
-    public String makeStepData() throws JSONException {
-        JSONObject json = new JSONObject();
 
-        int i=0;
-        for(i=0; i<30; i++) {
-            long now = System.currentTimeMillis() - (24*60*60*1000*i);
-            Date date = new Date(now);
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            String sel_date = sdf.format(date);
 
-            if(i==0) {
-                if(StepCheckService.count>0) {
-                    json.put(sel_date, StepCheckService.count);
-                }
-            }else{
-                String a = common.getSP(sel_date);
-                common.log(a);
-                if(!a.isEmpty()) {
-                    json.put(sel_date, a);
-                }
-            }
-        }
 
-        return json.toString();
-    }
-*/
     private class JavaScriptInterface {
 
         @JavascriptInterface
@@ -628,6 +623,92 @@ public class MainActivity extends Activity {
     //네이버로그인 끝
     /////////////////////////////////////////////////////////////////
 
+    /////////////////////////////////////////////////////////////////
+    //구글피트니스 시작
+
+    public void checkGoogleFit() {
+        
+        FitnessOptions fitnessOptions = FitnessOptions.builder()
+                .addDataType(DataType.TYPE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.AGGREGATE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_READ)
+                .build();
+
+        if (!GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(this), fitnessOptions)) {
+            GoogleSignIn.requestPermissions(
+                    this,
+                    GOOGLE_FIT_PERMISSIONS_REQUEST_CODE,
+                    GoogleSignIn.getLastSignedInAccount(this),
+                    fitnessOptions);
+        } else {
+            getStepsCount();
+        }
+    }
+
+    public void getStepsCount() {
+
+        Calendar cal = Calendar.getInstance();
+        Date now = new Date();
+        cal.setTime(now);
+
+        cal.set(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH),
+                cal.get(Calendar.DAY_OF_MONTH), 23, 59, 59);
+        long endTime = cal.getTimeInMillis();
+
+        cal.add(Calendar.WEEK_OF_YEAR, -3);
+        long startTime = cal.getTimeInMillis();
+
+        Fitness.getHistoryClient(this,
+                GoogleSignIn.getLastSignedInAccount(this))
+                .readData(new DataReadRequest.Builder()
+                        .aggregate(DataType.TYPE_STEP_COUNT_DELTA, DataType.TYPE_STEP_COUNT_DELTA)
+                        .bucketByTime(1, TimeUnit.DAYS)
+                        //.read(DataType.TYPE_STEP_COUNT_DELTA)
+                        .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
+                        .build())
+                .addOnSuccessListener(new OnSuccessListener<DataReadResponse>() {
+                    @Override
+                    public void onSuccess(DataReadResponse response) {
+
+                        JSONObject json = new JSONObject();
+                        int steps = 0;
+                        if (response.getBuckets().size() > 0) {
+                            for (Bucket bucket : response.getBuckets()) {
+                                List<DataSet> dataSets = bucket.getDataSets();
+                                for (DataSet dataSet : dataSets) {
+                                    for (DataPoint dp : dataSet.getDataPoints()) {
+                                        DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+                                        String sel_date = df.format(dp.getStartTime(TimeUnit.MILLISECONDS));
+                                        //common.log(sel_date);
+
+                                        for (Field field : dp.getDataType().getFields()) {
+                                            steps = dp.getValue(field).asInt();
+                                            //common.log("STEP : " + String.valueOf(steps));
+
+                                            try {
+                                                json.put(sel_date, String.valueOf(steps));
+                                            } catch (JSONException e) {
+                                                e.printStackTrace();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        common.log(String.valueOf(json));
+
+                        String data = "act=setStepInfo&step_data="+json.toString();
+                        common.log(data);
+                        String enc_data = Base64.encodeToString(data.getBytes(), 0);
+                        common.log("jsNativeToServer(enc_data) : step_data");
+                        webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
+
+                    }
+                });
+    }
+    //구글피트니스 끝
+    /////////////////////////////////////////////////////////////////
+
     public void sendMms(String message) {
         Uri uri = Uri.parse("smsto:");
         Intent it = new Intent(Intent.ACTION_SENDTO, uri);
@@ -637,7 +718,7 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if(webView.getUrl().endsWith(String.valueOf(R.string.default_url)))
+        if(webView.getUrl().endsWith(getResources().getString(R.string.default_url)))
         {
             finish();
         }
