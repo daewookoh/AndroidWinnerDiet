@@ -85,7 +85,7 @@ public class ContentShare extends Activity {
         String templateId = "13622";
         Map<String, String> templateArgs = new HashMap<>();
         templateArgs.put("${title}", title.replace("\n","      "));
-        templateArgs.put("${description}", content);
+        templateArgs.put("${content}", content);
         templateArgs.put("${image_url}", img_url);
 
         KakaoLinkService.getInstance().sendCustom(mContext, templateId, templateArgs, new ResponseCallback<KakaoLinkResponse>(){
