@@ -82,7 +82,7 @@ public class ContentShare extends Activity {
     private void shareKakaoTalk(String title, String content, String link_url, String img_url) {
         common.log("shareKakaoTalk()");
 
-        String templateId = "10642";
+        String templateId = "13622";
         Map<String, String> templateArgs = new HashMap<>();
         templateArgs.put("${title}", title.replace("\n","      "));
         templateArgs.put("${description}", content);
