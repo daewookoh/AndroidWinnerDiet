@@ -61,7 +61,8 @@ public class Common extends Application {
         boolean isWifiAvailable = manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).isAvailable();
         boolean isWifiConnect = manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).isConnectedOrConnecting();
 
-        if ((isWifiAvailable && isWifiConnect) || (isMobileAvailable && isMobileConnect)){
+        //if ((isWifiAvailable && isWifiConnect) || (isMobileAvailable && isMobileConnect)){
+        if ((isWifiAvailable) || (isMobileAvailable)){
             return true;
         }else{
             return false;

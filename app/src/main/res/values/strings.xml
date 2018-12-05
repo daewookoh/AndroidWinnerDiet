@@ -1,20 +1,25 @@
 <resources>
     <string name="app_name">WinnerDiet</string>
-    <string name="default_url">http://www.winnerdiet.co.kr</string>
-    <string name="api_url">http://www.winnerdiet.co.kr/app/api.php</string>
-    <string name="sns_callback_url">http://www.winnerdiet.co.kr/sns/callback_from_app.php</string>
+    <string name="default_url">https://www.winnerdiet.co.kr/</string>
+    <string name="api_url">https://www.winnerdiet.co.kr/app/api.php</string>
+    <string name="sns_callback_url">https://www.winnerdiet.co.kr/sns/callback_from_app.php</string>
     <string name="js_name">WinnerdietApp</string>
     <string name="user_agent">winnerdiet_app_android</string>
 
-    <string name="naver_client_id">Lk2Zb2Zrbg5OH5O_S7sK</string>
-    <string name="naver_client_secret">zash4KwwvV</string>
+    <string name="admob_id">ca-app-pub-6876766734666182~8352423155</string>
+    <string name="admob_id_test">ca-app-pub-3940256099942544~3347511713</string>
+    <string name="admob_front_ad">ca-app-pub-6876766734666182/4659045562</string>
+    <string name="admob_front_ad_test">ca-app-pub-3940256099942544/1033173712</string>
 
-    <string name="kakao_native_app_key">966a0931d50db66f01cedce812ca7064</string>
-    <string name="kakao_scheme">kakao966a0931d50db66f01cedce812ca7064</string>
-    <string name="kakao_client_secret">zash4KwwvV</string>
+    <string name="naver_client_id">odx6G1Dt3eo5YNNsQBH7</string>
+    <string name="naver_client_secret">aQqnBSDlM1</string>
+
+    <string name="kakao_native_app_key">df0fb0a29530ede0aba29a9414deb5af</string>
+    <string name="kakao_scheme">kakaodf0fb0a29530ede0aba29a9414deb5af</string>
+    <string name="kakao_client_secret">LIM5130vUv93dksCioP3h5AbQqlhAP7n</string>
     <string name="kakao_link_host">kakaolink</string>
 
-    <string name="facebook_app_id">2075845252701198</string>
+    <string name="facebook_app_id">601263656973915</string>
 
     <string name="log_tag">TTT</string>
 </resources>

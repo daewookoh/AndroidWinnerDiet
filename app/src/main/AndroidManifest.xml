@@ -17,12 +17,6 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        uncher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/AppTheme">
-
         <activity android:name=".MainActivity" android:screenOrientation="portrait"
             android:launchMode="singleInstance">
             <!--카카오공유-->
@@ -63,6 +57,8 @@
             android:value="@string/kakao_native_app_key" />
         <!-- 카카오로그인 끝-->
 
+        <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>
+
         <!--구글푸쉬-->
         <service
             android:name=".MyFirebaseInstanceIDService">
@@ -78,6 +74,12 @@
             </intent-filter>
         </service>
         <!--구글푸쉬 끝-->
+
+        <!--구글피트니스-->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyCze3XZsOc2VkHJI5j07vRGK0YQbCMwVSU" />
+        <!--구글피트니스 끝-->
 
 
     </application>

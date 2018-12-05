@@ -38,6 +38,10 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import com.facebook.share.widget.ShareDialog;
+import com.google.android.gms.ads.AdListener;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.InterstitialAd;
+import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.PendingResult;
@@ -99,6 +103,8 @@ public class MainActivity extends Activity {
     public static Context mContext;
     Common common = new Common(this);
 
+    private InterstitialAd frontAd;
+
     /*
     //만보기
     BroadcastReceiver receiver;
@@ -149,8 +155,6 @@ public class MainActivity extends Activity {
 
         webView = (WebView) findViewById(R.id.webViewMain);
         progressBar = (ProgressBar) findViewById(R.id.progressBarMain);
-
-
 
         refreshLayout = (SwipeRefreshLayout) findViewById(R.id.refreshMain);
 
@@ -273,10 +277,15 @@ public class MainActivity extends Activity {
                     refreshLayout.setEnabled(true);
                 }
 
-                if(url.contains("/step.php"))
+                if(url.endsWith("/step.php"))
                 {
                     checkGoogleFit();
                 }
+                else if(url.endsWith("/challenge.php"))
+                {
+                    loadFrontAd();
+                }
+
 
                 sendDeviceInfo();
 
@@ -327,6 +336,20 @@ public class MainActivity extends Activity {
 
                 case "KAKAO":
                     loginKako();
+                    break;
+
+                case "FRONT_AD" :
+
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (frontAd.isLoaded()) {
+                                frontAd.show();
+                            } else {
+                                common.log("The front_ad wasn't loaded yet.");
+                            }
+                        }
+                    });
                     break;
 
             }
@@ -627,10 +650,17 @@ public class MainActivity extends Activity {
     //구글피트니스 시작
 
     public void checkGoogleFit() {
-        
+
         FitnessOptions fitnessOptions = FitnessOptions.builder()
                 .addDataType(DataType.TYPE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_STEP_COUNT_CUMULATIVE, FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_DISTANCE_DELTA, FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_ACTIVITY_SEGMENT, FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_CALORIES_EXPENDED, FitnessOptions.ACCESS_READ)
                 .addDataType(DataType.AGGREGATE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.AGGREGATE_DISTANCE_DELTA, FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.AGGREGATE_ACTIVITY_SUMMARY, FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.AGGREGATE_CALORIES_EXPENDED, FitnessOptions.ACCESS_READ)
                 .build();
 
         if (!GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(this), fitnessOptions)) {
@@ -655,14 +685,16 @@ public class MainActivity extends Activity {
         long endTime = cal.getTimeInMillis();
 
         cal.add(Calendar.WEEK_OF_YEAR, -3);
+        //cal.add(Calendar.DAY_OF_YEAR, -2);
         long startTime = cal.getTimeInMillis();
 
+        // 1일단위
         Fitness.getHistoryClient(this,
+
                 GoogleSignIn.getLastSignedInAccount(this))
                 .readData(new DataReadRequest.Builder()
                         .aggregate(DataType.TYPE_STEP_COUNT_DELTA, DataType.TYPE_STEP_COUNT_DELTA)
                         .bucketByTime(1, TimeUnit.DAYS)
-                        //.read(DataType.TYPE_STEP_COUNT_DELTA)
                         .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
                         .build())
                 .addOnSuccessListener(new OnSuccessListener<DataReadResponse>() {
@@ -698,13 +730,140 @@ public class MainActivity extends Activity {
                         common.log(String.valueOf(json));
 
                         String data = "act=setStepInfo&step_data="+json.toString();
-                        common.log(data);
                         String enc_data = Base64.encodeToString(data.getBytes(), 0);
                         common.log("jsNativeToServer(enc_data) : step_data");
                         webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
 
                     }
                 });
+        // 1일단위 끝
+
+
+        /*
+        // 오늘하루만
+        Fitness.getHistoryClient(this,
+                GoogleSignIn.getLastSignedInAccount(this))
+                .readDailyTotal(DataType.TYPE_STEP_COUNT_DELTA)
+                .addOnSuccessListener(
+                        new OnSuccessListener<DataSet>() {
+                            @Override
+                            public void onSuccess(DataSet dataSet) {
+                                long total =
+                                        dataSet.isEmpty()
+                                                ? 0
+                                                : dataSet.getDataPoints().get(0).getValue(Field.FIELD_STEPS).asInt();
+                                common.log("Total steps: " + total);
+                            }
+                        });
+        // 오늘하루만 끝
+        */
+
+
+
+        /*
+        // 1일단위(구글 피트니스 앱과 같은 데이터 가져오기-데이터 매칭 안되서 사용안함)
+        DataSource ESTIMATED_STEP_DELTAS = new DataSource.Builder()
+                .setDataType(DataType.TYPE_STEP_COUNT_DELTA)
+                .setType(DataSource.TYPE_DERIVED)
+                .setStreamName("estimated_steps")
+                .setAppPackageName("com.google.android.gms")
+                .build();
+
+        Fitness.getHistoryClient(this,
+
+                GoogleSignIn.getLastSignedInAccount(this))
+                .readData(new DataReadRequest.Builder()
+                        .aggregate(ESTIMATED_STEP_DELTAS, DataType.AGGREGATE_STEP_COUNT_DELTA)
+                        .aggregate(DataType.TYPE_DISTANCE_DELTA, DataType.AGGREGATE_DISTANCE_DELTA)
+                        .aggregate(DataType.TYPE_CALORIES_EXPENDED, DataType.AGGREGATE_CALORIES_EXPENDED)
+                        .aggregate(DataType.TYPE_ACTIVITY_SEGMENT, DataType.AGGREGATE_ACTIVITY_SUMMARY)
+                        .bucketByTime(1, TimeUnit.DAYS)
+                        .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
+                        .build())
+                .addOnSuccessListener(new OnSuccessListener<DataReadResponse>() {
+                    @Override
+                    public void onSuccess(DataReadResponse response) {
+
+                        JSONObject json = new JSONObject();
+                        int steps = 0;
+                        if (response.getBuckets().size() > 0) {
+                            for (Bucket bucket : response.getBuckets()) {
+                                List<DataSet> dataSets = bucket.getDataSets();
+                                for (DataSet dataSet : dataSets) {
+                                    for (DataPoint dp : dataSet.getDataPoints()) {
+                                        DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+                                        String sel_date = df.format(dp.getStartTime(TimeUnit.MILLISECONDS));
+                                        //common.log(sel_date);
+
+                                        for (Field field : dp.getDataType().getFields()) {
+                                            //steps = dp.getValue(field).asInt();
+                                            common.log(String.valueOf(field) + ":" + String.valueOf(dp.getValue(field)));
+
+                                            try {
+                                                json.put(sel_date, String.valueOf(steps));
+                                            } catch (JSONException e) {
+                                                e.printStackTrace();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        common.log(String.valueOf(json));
+
+                        String data = "act=setStepInfo&step_data="+json.toString();
+                        String enc_data = Base64.encodeToString(data.getBytes(), 0);
+                        common.log("jsNativeToServer(enc_data) : step_data");
+                        webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
+
+                    }
+                });
+        // 1일단위(구글 피트니스 앱과 같은 데이터 가져오기) 끝
+        */
+
+
+        /*
+        // 기록단위
+        Fitness.getHistoryClient(this,
+                GoogleSignIn.getLastSignedInAccount(this))
+                .readData(new DataReadRequest.Builder()
+                        .read(DataType.TYPE_STEP_COUNT_DELTA)
+                        .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
+                        .build())
+                .addOnSuccessListener(new OnSuccessListener<DataReadResponse>() {
+                    @Override
+                    public void onSuccess(DataReadResponse response) {
+
+                        JSONObject json = new JSONObject();
+
+                        int steps = 0;
+                        List<DataSet> dataSets = response.getDataSets();
+                        for (DataSet dataSet : dataSets) {
+                            for (DataPoint dp : dataSet.getDataPoints()) {
+                                DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+                                String sel_date = df.format(dp.getStartTime(TimeUnit.MILLISECONDS));
+
+                                for (Field field : dp.getDataType().getFields()) {
+                                    steps = dp.getValue(field).asInt();
+                                    common.log("STEP : " + sel_date + " : " + String.valueOf(steps));
+
+                                    try {
+                                        json.put(sel_date, String.valueOf(steps));
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            }
+                        }
+
+                        common.log(String.valueOf(json));
+
+                    }
+                });
+        //기록단위 끝
+        */
+
     }
     //구글피트니스 끝
     /////////////////////////////////////////////////////////////////
@@ -777,5 +936,40 @@ public class MainActivity extends Activity {
     public void onResume() {
         super.onResume();
         webView.reload();
+    }
+
+    public void loadFrontAd() {
+        frontAd = new InterstitialAd(this);
+        frontAd.setAdUnitId(getResources().getString(R.string.admob_front_ad_test));
+        frontAd.loadAd(new AdRequest.Builder().build());
+
+
+        frontAd.setAdListener(new AdListener() {
+            @Override
+            public void onAdLoaded() {
+                // Code to be executed when an ad finishes loading.
+                common.log("front_ad_loaded");
+            }
+
+            @Override
+            public void onAdFailedToLoad(int errorCode) {
+                // Code to be executed when an ad request fails.
+            }
+
+            @Override
+            public void onAdOpened() {
+                // Code to be executed when the ad is displayed.
+            }
+
+            @Override
+            public void onAdLeftApplication() {
+                // Code to be executed when the user has left the app.
+            }
+
+            @Override
+            public void onAdClosed() {
+                // Code to be executed when when the interstitial ad is closed.
+            }
+        });
     }
 }
