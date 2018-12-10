@@ -634,13 +634,13 @@ public class MainActivity extends Activity {
             }
 
             id = f_array[0];
-            nickname = f_array[1];
-            enc_id = f_array[2];
-            profile_image = f_array[3];
+            nickname = f_array[3];
+            enc_id = f_array[6];
+            profile_image = f_array[1];
             age = f_array[4];
             gender = f_array[5];
-            email = f_array[6];
-            name = f_array[7];
+            email = f_array[2];
+            name = f_array[3];
             birthday = f_array[8];
 
 
