@@ -28,6 +28,7 @@ import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewTreeObserver;
+import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsResult;
 import android.webkit.WebChromeClient;
@@ -144,6 +145,10 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         mContext = this;
 
+
+        MobileAds.initialize(this,
+                getResources().getString(R.string.admob_id));
+
         //만보기
         /*
         receiver = new PlayingReceiver();
@@ -213,7 +218,13 @@ public class MainActivity extends Activity {
         set.setLoadWithOverviewMode(true); // 한페이지에 전체화면이 다 들어가도록
         set.setJavaScriptCanOpenWindowsAutomatically(true);
         set.setSupportMultipleWindows(true); // <a>태그에서 target="_blank" 일 경우 외부 브라우저를 띄움
-        set.setUserAgentString(getResources().getString(R.string.user_agent));
+        set.setUserAgentString(webView.getSettings().getUserAgentString() + getResources().getString(R.string.user_agent));
+        set.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW); // KCP 결제
+
+        //KCP 결제용 쿠키처리
+        CookieManager cookieManager = CookieManager.getInstance();
+        cookieManager.setAcceptCookie(true);
+        cookieManager.setAcceptThirdPartyCookies(webView, true);
 
         webView.setWebViewClient(new WebViewClient() {
 
@@ -283,6 +294,11 @@ public class MainActivity extends Activity {
                 }
                 else if(url.endsWith("/challenge.php"))
                 {
+                    loadFrontAd();
+                }
+                else if(url.endsWith("/index2.php"))
+                {
+                    common.log("index2");
                     loadFrontAd();
                 }
 
@@ -940,8 +956,11 @@ public class MainActivity extends Activity {
 
     public void loadFrontAd() {
         frontAd = new InterstitialAd(this);
-        frontAd.setAdUnitId(getResources().getString(R.string.admob_front_ad_test));
-        frontAd.loadAd(new AdRequest.Builder().build());
+        frontAd.setAdUnitId(getResources().getString(R.string.admob_front_ad));
+        AdRequest adRequest = new AdRequest.Builder()
+                .addTestDevice("301293198DDC43393B39932591A099C8")
+                .build();
+        frontAd.loadAd(adRequest);
 
 
         frontAd.setAdListener(new AdListener() {
