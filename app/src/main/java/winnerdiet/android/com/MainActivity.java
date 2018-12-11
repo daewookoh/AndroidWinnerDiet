@@ -1,5 +1,7 @@
 package winnerdiet.android.com;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -16,11 +18,14 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
+import android.os.Parcelable;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.ViewCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
@@ -31,6 +36,7 @@ import android.view.ViewTreeObserver;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsResult;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -80,6 +86,7 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
@@ -105,6 +112,12 @@ public class MainActivity extends Activity {
     Common common = new Common(this);
 
     private InterstitialAd frontAd;
+
+    //카메라(이미지)업로드
+    private final static int FCR = 1;
+    private String mCM;
+    private ValueCallback<Uri> mUM;
+    private ValueCallback<Uri[]> mUMA;
 
     /*
     //만보기
@@ -144,7 +157,6 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mContext = this;
-
 
         MobileAds.initialize(this,
                 getResources().getString(R.string.admob_id));
@@ -320,15 +332,57 @@ public class MainActivity extends Activity {
                 progressBar.setProgress(newProgress);
             }
 
-            @Override
-            public boolean onJsAlert(WebView view, String url, String message, final JsResult result) {
-                if (message.startsWith("[ChangeDate]")) {
-                    result.confirm();
-                    //uiCallback.openDatePicker(webView);
-                    return true;
-                } else {
-                    return false;
+            //For Android 5.0+
+            public boolean onShowFileChooser(
+                    WebView webView, ValueCallback<Uri[]> filePathCallback,
+                    WebChromeClient.FileChooserParams fileChooserParams) {
+
+
+                grantFileUploadPermission();
+
+                if (mUMA != null) {
+                    mUMA.onReceiveValue(null);
                 }
+
+                mUMA = filePathCallback;
+                Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                if (takePictureIntent.resolveActivity(MainActivity.this.getPackageManager()) != null) {
+
+                    File photoFile = null;
+
+                    try {
+                        photoFile = createImageFile();
+                        takePictureIntent.putExtra("PhotoPath", mCM);
+                    } catch (IOException ex) {
+                        Log.e(TAG, "Image file creation failed", ex);
+                    }
+                    if (photoFile != null) {
+                        mCM = "file:" + photoFile.getAbsolutePath();
+                        takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(photoFile));
+                    } else {
+                        takePictureIntent = null;
+                    }
+                }
+
+                Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
+                contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
+                contentSelectionIntent.setType("image/*");
+                Intent[] intentArray;
+
+                if (takePictureIntent != null) {
+                    intentArray = new Intent[]{takePictureIntent};
+                } else {
+                    intentArray = new Intent[0];
+                }
+
+
+                Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
+                chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
+                chooserIntent.putExtra(Intent.EXTRA_TITLE, "Image Chooser");
+                chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
+                startActivityForResult(chooserIntent, FCR);
+
+                return true;
             }
         });
 
@@ -337,6 +391,14 @@ public class MainActivity extends Activity {
     }
 
 
+    // Create an image file
+    private File createImageFile() throws IOException {
+
+        @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "img_" + timeStamp + "_";
+        File storageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+        return File.createTempFile(imageFileName, ".jpg", storageDir);
+    }
 
     private class JavaScriptInterface {
 
@@ -421,6 +483,21 @@ public class MainActivity extends Activity {
         }
     }
 
+    private boolean grantFileUploadPermission() {
+        if (Build.VERSION.SDK_INT >= 23) {
+            if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+                    checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+                    checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                return true;
+            }else{
+                ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.CAMERA}, 1);
+                return false;
+            }
+        }else{
+            return true;
+        }
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //카카오 로그인
     private void loginKako() {
@@ -429,10 +506,48 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+
         if (Session.getCurrentSession().handleActivityResult(requestCode, resultCode, data)) {
             return;
         }
+
         super.onActivityResult(requestCode, resultCode, data);
+
+        //카메라(이미지)업로드
+        if (Build.VERSION.SDK_INT >= 21) {
+            Uri[] results = null;
+
+            //Check if response is positive
+            if (resultCode == Activity.RESULT_OK) {
+                if (requestCode == FCR) {
+
+                    if (null == mUMA) {
+                        return;
+                    }
+                    if (data == null) {
+                        //Capture Photo if no image available
+                        if (mCM != null) {
+                            results = new Uri[]{Uri.parse(mCM)};
+                        }
+                    } else {
+                        String dataString = data.getDataString();
+                        if (dataString != null) {
+                            results = new Uri[]{Uri.parse(dataString)};
+                        }
+                    }
+                }
+            }
+            mUMA.onReceiveValue(results);
+            mUMA = null;
+        } else {
+
+            if (requestCode == FCR) {
+                if (null == mUM) return;
+                Uri result = data == null || resultCode != RESULT_OK ? null : data.getData();
+                mUM.onReceiveValue(result);
+                mUM = null;
+            }
+        }
     }
 
     private class SessionCallback implements ISessionCallback {
@@ -951,7 +1066,7 @@ public class MainActivity extends Activity {
     @Override
     public void onResume() {
         super.onResume();
-        webView.reload();
+        //webView.reload(); //카메라 이미지 업로드시 리로드되는 상황이 발생하여 리로드처리하지 않음
     }
 
     public void loadFrontAd() {
