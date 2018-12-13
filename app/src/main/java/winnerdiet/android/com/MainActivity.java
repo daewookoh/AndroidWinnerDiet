@@ -507,47 +507,37 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 
+        super.onActivityResult(requestCode, resultCode, data);
+
+        //카카오
         if (Session.getCurrentSession().handleActivityResult(requestCode, resultCode, data)) {
             return;
         }
 
-        super.onActivityResult(requestCode, resultCode, data);
-
         //카메라(이미지)업로드
-        if (Build.VERSION.SDK_INT >= 21) {
+        if (resultCode == Activity.RESULT_OK && requestCode == FCR)
+        {
             Uri[] results = null;
 
-            //Check if response is positive
-            if (resultCode == Activity.RESULT_OK) {
-                if (requestCode == FCR) {
-
-                    if (null == mUMA) {
-                        return;
-                    }
-                    if (data == null) {
-                        //Capture Photo if no image available
-                        if (mCM != null) {
-                            results = new Uri[]{Uri.parse(mCM)};
-                        }
-                    } else {
-                        String dataString = data.getDataString();
-                        if (dataString != null) {
-                            results = new Uri[]{Uri.parse(dataString)};
-                        }
-                    }
+            if (null == mUMA) {
+                return;
+            }
+            if (data == null) {
+                //Capture Photo if no image available
+                if (mCM != null) {
+                    results = new Uri[]{Uri.parse(mCM)};
+                }
+            } else {
+                String dataString = data.getDataString();
+                if (dataString != null) {
+                    results = new Uri[]{Uri.parse(dataString)};
                 }
             }
+
             mUMA.onReceiveValue(results);
             mUMA = null;
-        } else {
-
-            if (requestCode == FCR) {
-                if (null == mUM) return;
-                Uri result = data == null || resultCode != RESULT_OK ? null : data.getData();
-                mUM.onReceiveValue(result);
-                mUM = null;
-            }
         }
+
     }
 
     private class SessionCallback implements ISessionCallback {
