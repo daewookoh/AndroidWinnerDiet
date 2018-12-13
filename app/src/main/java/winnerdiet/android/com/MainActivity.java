@@ -1057,6 +1057,13 @@ public class MainActivity extends Activity {
     public void onResume() {
         super.onResume();
         //webView.reload(); //카메라 이미지 업로드시 리로드되는 상황이 발생하여 리로드처리하지 않음
+
+        // URL 세팅
+        String sUrl = getIntent().getStringExtra("sUrl");
+        if(sUrl!=null) {
+            webView.loadUrl(sUrl);
+        }
+
     }
 
     public void loadFrontAd() {
