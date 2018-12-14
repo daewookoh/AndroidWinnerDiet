@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -87,10 +88,13 @@ import org.json.JSONObject;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.text.DateFormat;
@@ -140,7 +144,6 @@ public class MainActivity extends Activity {
     SessionCallback callback;
 
     //sns로그인공용
-    String login_success_yn = "N";
     String email = "";
     String nickname = "";
     String enc_id = "";
@@ -302,6 +305,7 @@ public class MainActivity extends Activity {
                     refreshLayout.setEnabled(true);
                 }
 
+                /*
                 if(url.endsWith("/step.php"))
                 {
                     checkGoogleFit();
@@ -315,6 +319,7 @@ public class MainActivity extends Activity {
                     common.log("index2");
                     loadFrontAd();
                 }
+                */
 
 
                 sendDeviceInfo();
@@ -418,8 +423,15 @@ public class MainActivity extends Activity {
                     loginKako();
                     break;
 
-                case "FRONT_AD" :
+                case "STEP_DATA" :
+                    checkGoogleFit();
+                    break;
 
+                case "LOAD_FRONT_AD" :
+                    loadFrontAd();
+                    break;
+
+                case "SHOW_FRONT_AD" :
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -509,12 +521,16 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 
-        common.log(String.valueOf(resultCode));
-
         super.onActivityResult(requestCode, resultCode, data);
 
         //카카오
         if (Session.getCurrentSession().handleActivityResult(requestCode, resultCode, data)) {
+            return;
+        }
+
+        //구글피트
+        if (resultCode == Activity.RESULT_OK && requestCode == GOOGLE_FIT_PERMISSIONS_REQUEST_CODE) {
+            getStepsCount();
             return;
         }
 
@@ -564,7 +580,7 @@ public class MainActivity extends Activity {
         UserManagement.getInstance().me(new MeV2ResponseCallback() {
             @Override
             public void onSessionClosed(ErrorResult errorResult) {
-                common.log("kakao - onSessionClosed" + errorResult);
+                common.log("b");
             }
 
             @Override
@@ -572,27 +588,26 @@ public class MainActivity extends Activity {
                 common.log("onSuccess" + result.toString());
 
                 long userId = result.getId();
-                login_success_yn = "Y";
                 id = String.valueOf(userId);
                 gender = "";
                 email = result.getKakaoAccount().getEmail();
                 name = result.getNickname();
+                profile_image = result.getProfileImagePath();
 
 
                 String sUrl = getResources().getString(R.string.sns_callback_url)
                         + "?login_type=kakao"
-                        + "&success_yn=" + login_success_yn
+                        + "&success_yn=Y"
                         + "&id=" + id
                         + "&gender=" + gender
                         + "&name=" + name
                         + "&email=" + email
+                        + "&profile_image=" + profile_image
                         ;
                 common.log(sUrl);
                 webView.loadUrl(sUrl);
-                login_success_yn = "N";
             }
         });
-
     }
 
     @Override
@@ -617,12 +632,9 @@ public class MainActivity extends Activity {
         @Override
         public void run(boolean success) {
             if (success) {
-                String accessToken = mOAuthLoginModule.getAccessToken(mContext);
-                String refreshToken = mOAuthLoginModule.getRefreshToken(mContext);
-                long expiresAt = mOAuthLoginModule.getExpiresAt(mContext);
-                String tokenType = mOAuthLoginModule.getTokenType(mContext);
-
-                new RequestApiTask().execute(); //로그인이 성공하면  네이버에 계정값들을 가져온다.
+                final String accessToken = mOAuthLoginModule.getAccessToken(mContext);
+                ProfileTask task = new ProfileTask();
+                task.execute(accessToken);
 
             } else {
                 String errorCode = mOAuthLoginModule.getLastErrorCode(mContext).getCode();
@@ -633,129 +645,66 @@ public class MainActivity extends Activity {
         };
     };
 
-    private class RequestApiTask extends AsyncTask<Void, Void, Void> {
-
+    class ProfileTask extends AsyncTask<String, Void, String> {
+        String result;
         @Override
-        protected void onPreExecute() {
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            String url = "https://openapi.naver.com/v1/nid/getUserProfile.xml";
-            String at = mOAuthLoginModule.getAccessToken(mContext);
-            Pasingversiondata(mOAuthLoginModule.requestApi(mContext, at, url));
-            return null;
-        }
-
-        protected void onPostExecute(Void content) {
-            if (email == null) {
-                Toast.makeText(MainActivity.this,
-                        "로그인 실패하였습니다.  잠시후 다시 시도해 주세요!!", Toast.LENGTH_SHORT)
-                        .show();
-
-            } else {
-                String sUrl = getResources().getString(R.string.sns_callback_url)
-                        + "?login_type=naver"
-                        + "&success_yn=" + login_success_yn
-                        + "&id=" + id
-                        + "&gender=" + gender
-                        + "&name=" + name
-                        + "&email=" + email
-                        ;
-                common.log(sUrl);
-                webView.loadUrl(sUrl);
-                login_success_yn = "N";
-            }
-        }
-
-        private void Pasingversiondata(String data) {
-            // xml 파싱
-            String f_array[] = new String[9];
-
+        protected String doInBackground(String... strings) {
+            String token = strings[0];// 네이버 로그인 접근 토큰;
+            String header = "Bearer " + token; // Bearer 다음에 공백 추가
             try {
-                XmlPullParserFactory parserCreator = XmlPullParserFactory
-                        .newInstance();
-                XmlPullParser parser = parserCreator.newPullParser();
-                InputStream input = new ByteArrayInputStream(
-                        data.getBytes("UTF-8"));
-                parser.setInput(input, "UTF-8");
+                String apiURL = "https://openapi.naver.com/v1/nid/me";
+                URL url = new URL(apiURL);
+                HttpURLConnection con = (HttpURLConnection)url.openConnection();
+                con.setRequestMethod("GET");
+                con.setRequestProperty("Authorization", header);
+                int responseCode = con.getResponseCode();
+                BufferedReader br;
+                if(responseCode==200) { // 정상 호출
+                    br = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                } else {  // 에러 발생
+                    br = new BufferedReader(new InputStreamReader(con.getErrorStream()));
+                }
+                String inputLine;
+                StringBuffer response = new StringBuffer();
 
-                int parserEvent = parser.getEventType();
-                String tag;
-                boolean inText = false;
-                boolean lastMatTag = false;
+                while ((inputLine = br.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                result = response.toString();
+                br.close();
+                System.out.println(response.toString());
+            } catch (Exception e) {
+                System.out.println(e);
+            }
+            //result 값은 JSONObject 형태로 넘어옵니다.
+            return result;
+        }
 
-                int colIdx = 0;
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            try {
+                //넘어온 result 값을 JSONObject 로 변환해주고, 값을 가져오면 되는데요.
+                // result 를 Log에 찍어보면 어떻게 가져와야할 지 감이 오실거에요.
+                JSONObject object = new JSONObject(result);
+                if(object.getString("resultcode").equals("00")) {
+                    JSONObject jsonObject = new JSONObject(object.getString("response"));
+                    //Log.d("jsonObject", jsonObject.toString());
 
-                while (parserEvent != XmlPullParser.END_DOCUMENT) {
-                    switch (parserEvent) {
-                        case XmlPullParser.START_TAG:
-                            tag = parser.getName();
-                            if (tag.compareTo("xml") == 0) {
-                                inText = false;
-                            } else if (tag.compareTo("data") == 0) {
-                                inText = false;
-                            } else if (tag.compareTo("result") == 0) {
-                                inText = false;
-                            } else if (tag.compareTo("resultcode") == 0) {
-                                inText = false;
-                            } else if (tag.compareTo("message") == 0) {
-                                inText = false;
-                            } else if (tag.compareTo("response") == 0) {
-                                inText = false;
-                            } else {
-                                inText = true;
-                            }
+                    String sUrl = getResources().getString(R.string.sns_callback_url)
+                            + "?login_type=naver"
+                            + "&success_yn=Y"
+                            + "&id=" + jsonObject.getString("id")
+                            + "&name=" + jsonObject.getString("name")
+                            + "&email=" + jsonObject.getString("email")
+                            + "&profile_image=" + jsonObject.getString("profile_image")
+                            ;
+                    common.log(sUrl);
+                    webView.loadUrl(sUrl);
 
-                            break;
-
-                        case XmlPullParser.TEXT:
-                            tag = parser.getName();
-                            if (inText) {
-                                if (parser.getText() == null) {
-                                    f_array[colIdx] = "";
-                                } else {
-                                    f_array[colIdx] = parser.getText().trim();
-                                }
-                                colIdx++;
-                            }
-                            inText = false;
-                            break;
-
-                        case XmlPullParser.END_TAG:
-                            tag = parser.getName();
-                            inText = false;
-                            break;
-                    }
-                    parserEvent = parser.next();
                 }
             } catch (Exception e) {
-                Log.e("dd", "Error in network call", e);
-            }
-
-            id = f_array[0];
-            nickname = f_array[3];
-            enc_id = f_array[6];
-            profile_image = f_array[1];
-            age = f_array[4];
-            gender = f_array[5];
-            email = f_array[2];
-            name = f_array[3];
-            birthday = f_array[8];
-
-
-            common.log("email " + email);
-            common.log("profile_image " + profile_image);
-            common.log("gender " + gender);
-            common.log("id " + id);
-            common.log("name " + name);
-            common.log("birthday " + birthday);
-            common.log("enc_id " + enc_id);
-            common.log("nickname " + nickname);
-            common.log("age " + age);
-
-            if(!name.isEmpty()) {
-                login_success_yn = "Y";
+                e.printStackTrace();
             }
         }
     }
