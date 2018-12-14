@@ -21,6 +21,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
     private static final String TAG = "TTT";
     Common common = new Common(this);
+    String link = "";
 
     /**
      * Called when message is received.
@@ -42,6 +43,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         //you can get your text message here.
         String body= data.get("body");
         String title= data.get("title");
+        link = data.get("link");
 
         NotificationCompat.Builder mBuilder = createNotification(title, body);
         mBuilder.setContentIntent(createPendingIntent());
@@ -60,6 +62,10 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
      */
     private PendingIntent createPendingIntent(){
         Intent resultIntent = new Intent(this, MainActivity.class);
+        if(link.startsWith("http")) {
+            resultIntent.putExtra("sUrl", link);
+        }
+
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
         stackBuilder.addParentStack(MainActivity.class);
         stackBuilder.addNextIntent(resultIntent);
