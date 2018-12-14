@@ -74,6 +74,8 @@ import com.kakao.auth.Session;
 import com.kakao.network.ErrorResult;
 import com.kakao.usermgmt.UserManagement;
 import com.kakao.usermgmt.callback.MeResponseCallback;
+import com.kakao.usermgmt.callback.MeV2ResponseCallback;
+import com.kakao.usermgmt.response.MeV2Response;
 import com.kakao.usermgmt.response.model.UserProfile;
 import com.kakao.util.exception.KakaoException;
 import com.kakao.util.helper.log.Logger;
@@ -507,6 +509,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 
+        common.log(String.valueOf(resultCode));
+
         super.onActivityResult(requestCode, resultCode, data);
 
         //카카오
@@ -557,27 +561,22 @@ public class MainActivity extends Activity {
 
     private void requestMe() {
 
-        UserManagement.requestMe(new MeResponseCallback() {
-            @Override
-            public void onFailure(ErrorResult errorResult) {
-                common.log("kakao - onFailure" + errorResult);
-            }
-
+        UserManagement.getInstance().me(new MeV2ResponseCallback() {
             @Override
             public void onSessionClosed(ErrorResult errorResult) {
                 common.log("kakao - onSessionClosed" + errorResult);
             }
 
             @Override
-            public void onSuccess(UserProfile userProfile) {
-                common.log("onSuccess" + userProfile.toString());
+            public void onSuccess(MeV2Response result) {
+                common.log("onSuccess" + result.toString());
 
-                long userId = userProfile.getId();
+                long userId = result.getId();
                 login_success_yn = "Y";
                 id = String.valueOf(userId);
                 gender = "";
-                email = userProfile.getEmail();
-                name = userProfile.getNickname();
+                email = result.getKakaoAccount().getEmail();
+                name = result.getNickname();
 
 
                 String sUrl = getResources().getString(R.string.sns_callback_url)
@@ -592,12 +591,8 @@ public class MainActivity extends Activity {
                 webView.loadUrl(sUrl);
                 login_success_yn = "N";
             }
-
-            @Override
-            public void onNotSignedUp() {
-                common.log("kakao - onNotSignedUp");
-            }
         });
+
     }
 
     @Override
