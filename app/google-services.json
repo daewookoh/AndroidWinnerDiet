@@ -15,6 +15,30 @@
       },
       "oauth_client": [
         {
+          "client_id": "215406779064-j69tmlc298utsv11c4e43phe80m7d67f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "winnerdiet.android.com",
+            "certificate_hash": "e90348336e9bd1ff128ee8d5e4151835eaef4c63"
+          }
+        },
+        {
+          "client_id": "215406779064-9uv1r8b7gf75vl9cm1dnj692e7f1nud7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "winnerdiet.android.com",
+            "certificate_hash": "60cd971935ef568618b2f543722320ee23923a2d"
+          }
+        },
+        {
+          "client_id": "215406779064-d3q7on090dt2d3eulpokknkq89atn5n9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "winnerdiet.android.com",
+            "certificate_hash": "77fd710a50cbcd17e4122fefd2de6a53094db17e"
+          }
+        },
+        {
           "client_id": "215406779064-h9d1d17checdki5m7puo8v4v6rapmq48.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -29,8 +53,20 @@
           "status": 1
         },
         "appinvite_service": {
-          "status": 1,
-          "other_platform_oauth_client": []
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "215406779064-h9d1d17checdki5m7puo8v4v6rapmq48.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "215406779064-g6q9liljte3h26r107jgedsauctalvga.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "comm.ios.winnerdiet"
+              }
+            }
+          ]
         },
         "ads_service": {
           "status": 2
