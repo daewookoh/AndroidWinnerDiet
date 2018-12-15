@@ -535,22 +535,24 @@ public class MainActivity extends Activity {
         }
 
         //카메라(이미지)업로드
-        if (resultCode == Activity.RESULT_OK && requestCode == FCR)
+        if (requestCode == FCR)
         {
             Uri[] results = null;
 
-            if (null == mUMA) {
-                return;
-            }
-            if (data == null) {
-                //Capture Photo if no image available
-                if (mCM != null) {
-                    results = new Uri[]{Uri.parse(mCM)};
+            if (resultCode == Activity.RESULT_OK) {
+                if (null == mUMA) {
+                    return;
                 }
-            } else {
-                String dataString = data.getDataString();
-                if (dataString != null) {
-                    results = new Uri[]{Uri.parse(dataString)};
+                if (data == null) {
+                    //Capture Photo if no image available
+                    if (mCM != null) {
+                        results = new Uri[]{Uri.parse(mCM)};
+                    }
+                } else {
+                    String dataString = data.getDataString();
+                    if (dataString != null) {
+                        results = new Uri[]{Uri.parse(dataString)};
+                    }
                 }
             }
 
@@ -694,11 +696,22 @@ public class MainActivity extends Activity {
                     String sUrl = getResources().getString(R.string.sns_callback_url)
                             + "?login_type=naver"
                             + "&success_yn=Y"
-                            + "&id=" + jsonObject.getString("id")
-                            + "&name=" + jsonObject.getString("name")
-                            + "&email=" + jsonObject.getString("email")
-                            + "&profile_image=" + jsonObject.getString("profile_image")
-                            ;
+                            + "&id=" + jsonObject.getString("id");
+
+                    if(jsonObject.has("name"))
+                    {
+                        sUrl += "&name=" + jsonObject.getString("name");
+                    }
+
+                    if(jsonObject.has("email"))
+                    {
+                        sUrl += "&email=" + jsonObject.getString("email");
+                    }
+
+                    if(jsonObject.has("profile_image")) {
+                        sUrl += "&profile_image=" + jsonObject.getString("profile_image");
+                    }
+
                     common.log(sUrl);
                     webView.loadUrl(sUrl);
 
@@ -981,6 +994,12 @@ public class MainActivity extends Activity {
         device_model = common.getSP("device_model");
         app_version = common.getSP("app_version");
 
+        //앱버젼 변경시 업데이트
+        String new_app_version = BuildConfig.VERSION_NAME;
+        if(new_app_version!=app_version) {
+            app_version = new_app_version;
+            common.putSP("app_version", new_app_version);
+        }
 
         String data = "act=setAppDeviceInfo&device_type=Android"
                 + "&device_id="+device_id
