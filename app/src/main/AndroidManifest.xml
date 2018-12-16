@@ -20,7 +20,7 @@
         android:theme="@style/AppTheme">
 
         <activity android:name=".MainActivity" android:screenOrientation="portrait"
-            android:launchMode="singleInstance">
+            android:launchMode="singleTask">
             <!--카카오공유-->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -78,9 +78,9 @@
         <!--구글푸쉬 끝-->
 
         <!--구글피트니스-->
-        <meta-data
+        <!--meta-data
             android:name="com.google.android.gms.API_KEY"
-            android:value="AIzaSyCze3XZsOc2VkHJI5j07vRGK0YQbCMwVSU" />
+            android:value="AIzaSyCze3XZsOc2VkHJI5j07vRGK0YQbCMwVSU" /-->
         <!--구글피트니스 끝-->
 
 
