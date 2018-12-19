@@ -237,6 +237,7 @@ public class MainActivity extends Activity {
         set.setSupportMultipleWindows(true); // <a>태그에서 target="_blank" 일 경우 외부 브라우저를 띄움
         set.setUserAgentString(webView.getSettings().getUserAgentString() + getResources().getString(R.string.user_agent));
         set.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW); // KCP 결제
+        set.setTextZoom(100);
 
         //KCP 결제용 쿠키처리
         CookieManager cookieManager = CookieManager.getInstance();
@@ -572,7 +573,6 @@ public class MainActivity extends Activity {
         @Override
         public void onSessionOpenFailed(KakaoException exception) {
             if(exception != null) {
-                Logger.e(exception);
             }
         }
     }
@@ -766,7 +766,8 @@ public class MainActivity extends Activity {
         //cal.add(Calendar.DAY_OF_YEAR, -2);
         long startTime = cal.getTimeInMillis();
 
-        // 1일단위
+/*
+        // 1일단위  //오레오 이상 버젼에서 날짜라 하루씩 미뤄지는 현상 발견되어 사용안함
         Fitness.getHistoryClient(this,
 
                 GoogleSignIn.getLastSignedInAccount(this))
@@ -788,11 +789,11 @@ public class MainActivity extends Activity {
                                     for (DataPoint dp : dataSet.getDataPoints()) {
                                         DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
                                         String sel_date = df.format(dp.getStartTime(TimeUnit.MILLISECONDS));
-                                        //common.log(sel_date);
+                                        common.log(sel_date);
 
                                         for (Field field : dp.getDataType().getFields()) {
                                             steps = dp.getValue(field).asInt();
-                                            //common.log("STEP : " + String.valueOf(steps));
+                                            common.log("STEP : " + String.valueOf(steps));
 
                                             try {
                                                 json.put(sel_date, String.valueOf(steps));
@@ -815,7 +816,7 @@ public class MainActivity extends Activity {
                     }
                 });
         // 1일단위 끝
-
+*/
 
         /*
         // 오늘하루만
@@ -838,7 +839,7 @@ public class MainActivity extends Activity {
 
 
 
-        /*
+/*
         // 1일단위(구글 피트니스 앱과 같은 데이터 가져오기-데이터 매칭 안되서 사용안함)
         DataSource ESTIMATED_STEP_DELTAS = new DataSource.Builder()
                 .setDataType(DataType.TYPE_STEP_COUNT_DELTA)
@@ -898,10 +899,10 @@ public class MainActivity extends Activity {
                     }
                 });
         // 1일단위(구글 피트니스 앱과 같은 데이터 가져오기) 끝
-        */
+*/
 
 
-        /*
+
         // 기록단위
         Fitness.getHistoryClient(this,
                 GoogleSignIn.getLastSignedInAccount(this))
@@ -916,31 +917,49 @@ public class MainActivity extends Activity {
                         JSONObject json = new JSONObject();
 
                         int steps = 0;
+                        int steps_sum = 0;
+                        String sel_date = "";
+                        String last_date = "";
+
                         List<DataSet> dataSets = response.getDataSets();
                         for (DataSet dataSet : dataSets) {
+
                             for (DataPoint dp : dataSet.getDataPoints()) {
-                                DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm");
-                                String sel_date = df.format(dp.getStartTime(TimeUnit.MILLISECONDS));
+                                DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+                                sel_date = df.format(dp.getStartTime(TimeUnit.MILLISECONDS));
 
                                 for (Field field : dp.getDataType().getFields()) {
+
+                                    if(!sel_date.equals(last_date))
+                                    {
+                                        steps_sum = 0;
+                                    }
+
                                     steps = dp.getValue(field).asInt();
-                                    common.log("STEP : " + sel_date + " : " + String.valueOf(steps));
+                                    steps_sum += steps;
+                                    //common.log("STEP : " + sel_date + last_date + " : " + String.valueOf(steps_sum));
 
                                     try {
-                                        json.put(sel_date, String.valueOf(steps));
+                                        json.put(sel_date, String.valueOf(steps_sum));
                                     } catch (JSONException e) {
                                         e.printStackTrace();
                                     }
+
+                                    last_date = sel_date;
                                 }
                             }
                         }
 
                         common.log(String.valueOf(json));
+                        String data = "act=setStepInfo&step_data="+json.toString();
+                        String enc_data = Base64.encodeToString(data.getBytes(), 0);
+                        //common.log("jsNativeToServer(enc_data) : step_data");
+                        webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
 
                     }
                 });
         //기록단위 끝
-        */
+
 
     }
     //구글피트니스 끝
