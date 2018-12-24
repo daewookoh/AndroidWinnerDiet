@@ -21,6 +21,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.Message;
 import android.os.Parcelable;
 import android.provider.MediaStore;
 import android.provider.Settings;
@@ -293,6 +294,7 @@ public class MainActivity extends Activity {
             }
 
             public void onPageFinished(WebView view, String url) {
+
                 super.onPageFinished(view, url);
                 progressBar.setVisibility(View.INVISIBLE);
                 refreshLayout.setRefreshing(false);
@@ -335,6 +337,20 @@ public class MainActivity extends Activity {
         });
 
         webView.setWebChromeClient(new WebChromeClient() {
+
+            //<a>태그에서 target="_blank" 일 경우 외부 브라우저를 띄우기 위해 필요한override
+            @Override
+            public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, Message resultMsg)
+            {
+                WebView newWebView = new WebView(MainActivity.this);
+                WebSettings webSettings = newWebView.getSettings();
+                webSettings.setJavaScriptEnabled(true);
+
+                ((WebView.WebViewTransport)resultMsg.obj).setWebView(newWebView);
+                resultMsg.sendToTarget();
+                return true;
+            }
+
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
                 progressBar.setProgress(newProgress);
@@ -426,6 +442,19 @@ public class MainActivity extends Activity {
 
                 case "STEP_DATA" :
                     checkGoogleFit();
+                    break;
+
+                case "CHECK_GOOGLE_FIT_INSTALL" :
+                    if(isInstallApp("com.google.android.apps.fitness")==false){
+
+                        webView.post(new Runnable() {
+                            public void run() {
+                                webView.loadUrl("javascript:openGoogleInstall();");
+                            }
+                        });
+
+
+                    }
                     break;
 
                 case "LOAD_FRONT_AD" :
@@ -726,6 +755,17 @@ public class MainActivity extends Activity {
 
     /////////////////////////////////////////////////////////////////
     //구글피트니스 시작
+    private boolean isInstallApp(String pakageName){
+        Intent intent = mContext.getPackageManager().getLaunchIntentForPackage(pakageName);
+
+        if(intent==null){
+            //미설치
+            return false;
+        }else{
+            //설치
+            return true;
+        }
+    }
 
     public void checkGoogleFit() {
 
@@ -930,22 +970,24 @@ public class MainActivity extends Activity {
 
                                 for (Field field : dp.getDataType().getFields()) {
 
-                                    if(!sel_date.equals(last_date))
-                                    {
-                                        steps_sum = 0;
+                                    if(!String.valueOf(dp.getOriginalDataSource().getStreamName()).equals("user_input")) {
+
+                                        if (!sel_date.equals(last_date)) {
+                                            steps_sum = 0;
+                                        }
+
+                                        steps = dp.getValue(field).asInt();
+                                        steps_sum += steps;
+                                        common.log("STEP : " + sel_date + last_date + " : " + String.valueOf(steps_sum));
+
+                                        try {
+                                            json.put(sel_date, String.valueOf(steps_sum));
+                                        } catch (JSONException e) {
+                                            e.printStackTrace();
+                                        }
+
+                                        last_date = sel_date;
                                     }
-
-                                    steps = dp.getValue(field).asInt();
-                                    steps_sum += steps;
-                                    //common.log("STEP : " + sel_date + last_date + " : " + String.valueOf(steps_sum));
-
-                                    try {
-                                        json.put(sel_date, String.valueOf(steps_sum));
-                                    } catch (JSONException e) {
-                                        e.printStackTrace();
-                                    }
-
-                                    last_date = sel_date;
                                 }
                             }
                         }
@@ -953,7 +995,7 @@ public class MainActivity extends Activity {
                         common.log(String.valueOf(json));
                         String data = "act=setStepInfo&step_data="+json.toString();
                         String enc_data = Base64.encodeToString(data.getBytes(), 0);
-                        //common.log("jsNativeToServer(enc_data) : step_data");
+                        common.log("jsNativeToServer(enc_data) : step_data");
                         webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
 
                     }
