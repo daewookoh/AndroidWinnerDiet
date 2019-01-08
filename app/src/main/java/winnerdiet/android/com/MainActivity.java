@@ -254,7 +254,7 @@ public class MainActivity extends Activity {
                     return false;
                 }
 
-                if (url != null && (url.startsWith("intent:") )) {
+                if (url != null && (url.startsWith("intent:") || (url.startsWith("ahnlabv3mobileplus:")))) {
                     Log.e("1번 intent://" , url);
                     try {
                         Intent intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
