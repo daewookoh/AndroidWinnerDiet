@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">WinnerDiet</string>
-    <string name="default_url">https://www.winnerdiet.co.kr/</string>
-    <string name="api_url">https://www.winnerdiet.co.kr/app/api.php</string>
-    <string name="sns_callback_url">https://www.winnerdiet.co.kr/sns/callback_from_app.php</string>
+    <string name="app_name">WinnerLife</string>
+    <string name="default_url">https://www.winnerlife.co.kr/</string>
+    <string name="api_url">https://www.winnerlife.co.kr/app/api.php</string>
+    <string name="sns_callback_url">https://www.winnerlife.co.kr/sns/callback_from_app.php</string>
     <string name="js_name">WinnerdietApp</string>
     <string name="user_agent">winnerdiet_app_android</string>
 

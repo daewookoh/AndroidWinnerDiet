@@ -1100,7 +1100,7 @@ public class MainActivity extends Activity {
         frontAd = new InterstitialAd(this);
         frontAd.setAdUnitId(getResources().getString(R.string.admob_front_ad));
         AdRequest adRequest = new AdRequest.Builder()
-                .addTestDevice("301293198DDC43393B39932591A099C8")
+                //.addTestDevice("301293198DDC43393B39932591A099C8")
                 .build();
         frontAd.loadAd(adRequest);
 
