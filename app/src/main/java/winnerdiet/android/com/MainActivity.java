@@ -458,7 +458,13 @@ public class MainActivity extends Activity {
                     break;
 
                 case "LOAD_FRONT_AD" :
-                    loadFrontAd();
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            loadFrontAd();
+                        }
+                    });
+
                     break;
 
                 case "SHOW_FRONT_AD" :
