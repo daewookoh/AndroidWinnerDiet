@@ -15,6 +15,9 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -120,6 +123,10 @@ public class MainActivity extends Activity {
 
     private InterstitialAd frontAd;
 
+    //GPS
+    private final int PERMISSIONS_ACCESS_FINE_LOCATION = 1000;
+    private final int PERMISSIONS_ACCESS_COARSE_LOCATION = 1001;
+
     //카메라(이미지)업로드
     private final static int FCR = 1;
     private String mCM;
@@ -166,6 +173,9 @@ public class MainActivity extends Activity {
 
         MobileAds.initialize(this,
                 getResources().getString(R.string.admob_id));
+
+
+        setGPS();
 
         //만보기
         /*
@@ -228,6 +238,68 @@ public class MainActivity extends Activity {
         }
     }
     */
+
+    public void setGPS() {
+
+        // Acquire a reference to the system Location Manager
+        LocationManager locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+
+        LocationListener locationListener = new LocationListener() {
+            public void onLocationChanged(Location location) {
+                double lat = location.getLatitude();
+                double lng = location.getLongitude();
+
+                //common.log("latitude: " + lat + ", longitude: " + lng);
+            }
+
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+                //common.log("onStatusChanged");
+            }
+
+            public void onProviderEnabled(String provider) {
+                //common.log("onProviderEnabled");
+            }
+
+            public void onProviderDisabled(String provider) {
+                //common.log("onProviderDisabled");
+            }
+        };
+
+        // Register the listener with the Location Manager to receive location updates
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                    && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) {
+
+                requestPermissions(
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        PERMISSIONS_ACCESS_FINE_LOCATION);
+
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                    && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED){
+
+                requestPermissions(
+                        new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                        PERMISSIONS_ACCESS_COARSE_LOCATION);
+            }
+        }
+        else {
+            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+
+            // 수동으로 위치 구하기
+            String locationProvider = LocationManager.GPS_PROVIDER;
+            Location lastKnownLocation = locationManager.getLastKnownLocation(locationProvider);
+            if (lastKnownLocation != null) {
+                double lng = lastKnownLocation.getLongitude();
+                double lat = lastKnownLocation.getLatitude();
+                common.log("longtitude=" + lng + ", latitude=" + lat);
+                common.putSP("longtitude", Double.toString(lng));
+                common.putSP("latitude", Double.toString(lat));
+            }
+        }
+    }
 
     public void setWebview(final WebView webView)
     {
@@ -298,7 +370,9 @@ public class MainActivity extends Activity {
                 super.onPageFinished(view, url);
                 progressBar.setVisibility(View.INVISIBLE);
                 refreshLayout.setRefreshing(false);
+                refreshLayout.setEnabled(true);
 
+                /*
                 if(url.endsWith(getResources().getString(R.string.default_url)))
                 {
                     refreshLayout.setEnabled(false);
@@ -307,6 +381,7 @@ public class MainActivity extends Activity {
                 {
                     refreshLayout.setEnabled(true);
                 }
+                */
 
                 /*
                 if(url.endsWith("/step.php"))
@@ -444,6 +519,12 @@ public class MainActivity extends Activity {
                     checkGoogleFit();
                     break;
 
+                case "REFRESH_UNABLE" :
+                    common.log("REFRESH_UNABLE");
+                    refreshLayout.setEnabled(false);
+
+                    break;
+
                 case "CHECK_GOOGLE_FIT_INSTALL" :
                     if(isInstallApp("com.google.android.apps.fitness")==false){
 
@@ -452,8 +533,6 @@ public class MainActivity extends Activity {
                                 webView.loadUrl("javascript:openGoogleInstall();");
                             }
                         });
-
-
                     }
                     break;
 
@@ -1040,6 +1119,8 @@ public class MainActivity extends Activity {
         String device_token;
         String device_model;
         String app_version;
+        String longtitude;
+        String latitude;
 
         device_id = common.getSP("device_id");
 
@@ -1068,11 +1149,18 @@ public class MainActivity extends Activity {
             common.putSP("app_version", new_app_version);
         }
 
+        setGPS();
+        longtitude = common.getSP("longtitude");
+        latitude = common.getSP("latitude");
+
         String data = "act=setAppDeviceInfo&device_type=Android"
                 + "&device_id="+device_id
                 + "&device_token="+device_token
                 +"&device_model="+device_model
-                +"&app_version="+app_version;
+                +"&app_version="+app_version
+                +"&longtitude="+longtitude
+                +"&latitude="+latitude
+                ;
 
         String enc_data = Base64.encodeToString(data.getBytes(), 0);
 
