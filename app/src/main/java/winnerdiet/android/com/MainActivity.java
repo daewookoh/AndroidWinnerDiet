@@ -370,8 +370,7 @@ public class MainActivity extends Activity {
                 super.onPageFinished(view, url);
                 progressBar.setVisibility(View.INVISIBLE);
                 refreshLayout.setRefreshing(false);
-                refreshLayout.setEnabled(true);
-
+                refreshLayout.setEnabled(false);
                 /*
                 if(url.endsWith(getResources().getString(R.string.default_url)))
                 {
@@ -521,7 +520,12 @@ public class MainActivity extends Activity {
 
                 case "REFRESH_UNABLE" :
                     common.log("REFRESH_UNABLE");
-                    refreshLayout.setEnabled(false);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            refreshLayout.setEnabled(false);
+                        }
+                    });
 
                     break;
 
