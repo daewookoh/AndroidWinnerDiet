@@ -10,6 +10,8 @@
     <string name="admob_id_test">ca-app-pub-3940256099942544~3347511713</string>
     <string name="admob_front_ad">ca-app-pub-6876766734666182/4659045562</string>
     <string name="admob_front_ad_test">ca-app-pub-3940256099942544/1033173712</string>
+    <string name="admob_reward_ad">ca-app-pub-6876766734666182/4255127327</string>
+    <string name="admob_reward_ad_test">ca-app-pub-3940256099942544/5224354917</string>
 
     <string name="naver_client_id">odx6G1Dt3eo5YNNsQBH7</string>
     <string name="naver_client_secret">aQqnBSDlM1</string>

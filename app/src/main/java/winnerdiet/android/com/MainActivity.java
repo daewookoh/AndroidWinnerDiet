@@ -54,6 +54,9 @@ import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.InterstitialAd;
 import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.ads.reward.RewardItem;
+import com.google.android.gms.ads.reward.RewardedVideoAd;
+import com.google.android.gms.ads.reward.RewardedVideoAdListener;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.PendingResult;
@@ -113,7 +116,7 @@ import static android.content.ContentValues.TAG;
 
 import com.google.android.gms.fitness.Fitness;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements RewardedVideoAdListener {
 
     WebView webView;
     ProgressBar progressBar;
@@ -122,6 +125,7 @@ public class MainActivity extends Activity {
     Common common = new Common(this);
 
     private InterstitialAd frontAd;
+    private RewardedVideoAd rewardAd;
 
     //GPS
     private final int PERMISSIONS_ACCESS_FINE_LOCATION = 1000;
@@ -370,7 +374,7 @@ public class MainActivity extends Activity {
                 super.onPageFinished(view, url);
                 progressBar.setVisibility(View.INVISIBLE);
                 refreshLayout.setRefreshing(false);
-                refreshLayout.setEnabled(false);
+                refreshLayout.setEnabled(true);
                 /*
                 if(url.endsWith(getResources().getString(R.string.default_url)))
                 {
@@ -547,7 +551,24 @@ public class MainActivity extends Activity {
                             loadFrontAd();
                         }
                     });
+                    break;
 
+                case "LOAD_REWARD_AD" :
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            loadRewardAd();
+                        }
+                    });
+                    break;
+
+                case "SHOW_REWARD_AD" :
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            rewardAd.show();
+                        }
+                    });
                     break;
 
                 case "SHOW_FRONT_AD" :
@@ -1067,7 +1088,7 @@ public class MainActivity extends Activity {
 
                                         steps = dp.getValue(field).asInt();
                                         steps_sum += steps;
-                                        common.log("STEP : " + sel_date + last_date + " : " + String.valueOf(steps_sum));
+                                        //common.log("STEP : " + sel_date + last_date + " : " + String.valueOf(steps_sum));
 
                                         try {
                                             json.put(sel_date, String.valueOf(steps_sum));
@@ -1225,4 +1246,55 @@ public class MainActivity extends Activity {
             }
         });
     }
+
+    //애드몹(리워드광고)
+    public void loadRewardAd() {
+        common.log("loadRewardAd");
+        rewardAd = MobileAds.getRewardedVideoAdInstance(this);
+        rewardAd.setUserId(getResources().getString(R.string.admob_id));
+        rewardAd.setRewardedVideoAdListener(this);
+        AdRequest adRequest = new AdRequest.Builder().build();
+        rewardAd.loadAd(getResources().getString(R.string.admob_reward_ad), adRequest);
+    }
+
+    @Override
+    public void onRewardedVideoAdLoaded() {
+        common.log("rewardAdLoaded");
+        webView.loadUrl("javascript:rewardLoaded()");
+    }
+
+    @Override
+    public void onRewardedVideoAdOpened() {
+    }
+
+    @Override
+    public void onRewardedVideoStarted() {
+    }
+
+    @Override
+    public void onRewardedVideoAdClosed() {
+
+    }
+
+    @Override
+    public void onRewarded(RewardItem rewardItem) {
+        common.log("onRewarded");
+        webView.loadUrl("javascript:rewardComplete()");
+    }
+
+    @Override
+    public void onRewardedVideoAdLeftApplication() {
+
+    }
+
+    @Override
+    public void onRewardedVideoAdFailedToLoad(int i) {
+
+    }
+
+    @Override
+    public void onRewardedVideoCompleted() {
+
+    }
+    //애드몹(리워드광고 끝)
 }
