@@ -1,6 +1,8 @@
 package winnerdiet.android.com;
 
+import android.annotation.SuppressLint;
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.TaskStackBuilder;
@@ -31,6 +33,8 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
 
+        int PUSH_CHANNEL_ID = 1;
+
         // TODO(developer): Handle FCM messages here.
         // Not getting messages here? See why this may be: https://goo.gl/39bRNJ
         Log.d(TAG, "From: " + remoteMessage.getFrom());
@@ -47,7 +51,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         mBuilder.setContentIntent(createPendingIntent());
 
         NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        mNotificationManager.notify(1, mBuilder.build());
+        mNotificationManager.notify(PUSH_CHANNEL_ID, mBuilder.build());
 
     }
     // [END receive_message]
@@ -77,17 +81,27 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
      * @return
      */
     private NotificationCompat.Builder createNotification(String title, String body){
-        String channelId = "CHANNEL_ID";
-        Bitmap icon = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher);
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setLargeIcon(icon)
+        Bitmap icon = BitmapFactory.decodeResource(getResources(), R.mipmap.logo_round_512);
+
+        NotificationManager notificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            @SuppressLint("WrongConstant")
+            NotificationChannel notificationChannel=new NotificationChannel("PushNotification","n_channel",NotificationManager.IMPORTANCE_MAX);
+            //notificationChannel.setDescription("description");
+            //notificationChannel.setName("PushNotificationOreo");
+            notificationManager.createNotificationChannel(notificationChannel);
+        }
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
+                .setChannelId("PushNotification")
+                .setSmallIcon(R.mipmap.logo_round_512)
                 .setContentTitle(title)
                 .setContentText(body)
-                .setSmallIcon(R.mipmap.ic_launcher/*스와이프 전 아이콘*/)
                 .setAutoCancel(true)
                 .setWhen(System.currentTimeMillis())
                 .setDefaults(Notification.DEFAULT_ALL);
+
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP){
             builder.setCategory(Notification.CATEGORY_MESSAGE)
                     .setPriority(Notification.PRIORITY_HIGH)

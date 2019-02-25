@@ -6,8 +6,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -33,18 +35,22 @@ public class StepCheckService extends Service implements SensorEventListener {
     Common common = new Common(this);
 
     public static int count = 0;
+    //public static int count1 = 0;
+    //public static int count2 = 0;
+    public static int count_default = 0;
 
     NotificationCompat.Builder builder;
 
-    //private Sensor stepCountSensor;
-    private Sensor accelerometerSensor;
+    private Sensor stepCountSensor;
+    //private Sensor stepDetectSensor;
+    //private Sensor accelerometerSensor;
     private SensorManager sensorManager;
 
     private static final int ACCEL_RING_SIZE = 50;
     private static final int VEL_RING_SIZE = 10;
 
     // change this threshold according to your sensitivity preferences
-    private static final float STEP_THRESHOLD = 11;
+    private static final float STEP_THRESHOLD = 50f;
 
     private static final int STEP_DELAY_NS = 11000000;
 
@@ -62,10 +68,16 @@ public class StepCheckService extends Service implements SensorEventListener {
         super.onCreate();
         common.log("onCreate-StepCheckService");
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        //stepCountSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR);
-        accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
-        //common.putSP("step_count", "688");
+        // TYPE_STEP_COUNTER : 걸음수 표준
+        // TYPE_STEP_DETECTOR : TYPE_STEP_COUNTER 보다 걸음수가 3%가량 적게나와서 사용안함
+        // TYPE_ACCELEROMETER : 가속센서를 이용, 민감도를 커스터마이징 할수 있지만 조절 어렵고 배터리소모량 많아 사용안함
+        stepCountSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+        //stepDetectSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR);
+        //accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+
+        //common.putSP("step_count", "4344");
+
         String step_count = common.getSP("step_count");
 
         if(!step_count.isEmpty())
@@ -74,21 +86,37 @@ public class StepCheckService extends Service implements SensorEventListener {
         }
 
         myStartForeground(step_count);
+        registerReceiver(mReceiver, new IntentFilter(Intent.ACTION_DATE_CHANGED));
 
     }
 
+    private final Receiver mReceiver = new Receiver() {
 
-    public  void myStartForeground(String text){
+        @Override
+        public void onReceive(Context context, Intent intent) {
+
+            String action = intent.getAction();
+
+            if(action.equals(Intent.ACTION_DATE_CHANGED))
+            {
+                reportStep();
+            }
+        }
+    };
+
+    public void myStartForeground(String text){
 
         Intent notificationIntent = new Intent(this, MainActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-        String CHANNEL_ID = "Custom_StepCounter";
+        String CHANNEL_ID = "StepCounter";
+        String CHANNEL_NAME = "만보기";
 
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
-                    "Custom_StepCounter",
-                    NotificationManager.IMPORTANCE_DEFAULT);
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_NONE);
             channel.setSound(null,null);
+            channel.setShowBadge(false);
 
             ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE))
                     .createNotificationChannel(channel);
@@ -125,13 +153,18 @@ public class StepCheckService extends Service implements SensorEventListener {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
+
+        if (stepCountSensor != null) {
+            sensorManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_NORMAL);
+        }
+        /*
         if (accelerometerSensor != null) {
             sensorManager.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_NORMAL);
         }
-        //if (stepCountSensor != null) {
-        //    sensorManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_NORMAL);
-        //}
-
+        if (stepDetectSensor != null) {
+            sensorManager.registerListener(this, stepDetectSensor, SensorManager.SENSOR_DELAY_NORMAL);
+        }
+        */
         return START_STICKY;
     }
 
@@ -147,22 +180,37 @@ public class StepCheckService extends Service implements SensorEventListener {
 
     @Override
     public void onSensorChanged(SensorEvent event) {
+
+        if (event.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
+            if(count_default==0) {
+
+                String step_count = common.getSP("step_count");
+                //common.log("A"+step_count);
+                count_default = (int)event.values[0] - Integer.parseInt(step_count);
+                //common.log("B"+String.valueOf(count_default));
+            }
+            count = (int)event.values[0] - count_default;
+            //common.log("C"+String.valueOf(count));
+            reportStep();
+        }
+        /*
         if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             calculate(event.timestamp, event.values[0], event.values[1], event.values[2]);
         }
-        //if (event.sensor.getType() == Sensor.TYPE_STEP_DETECTOR) {
-        //    if(event.values[0] == 1.0f) {
-        //        reportStep();
-        //    }
-        //}
+
+        if (event.sensor.getType() == Sensor.TYPE_STEP_DETECTOR) {
+            count2++;
+            //if(event.values[0] == 1.0f) {
+            //reportStep();
+            //}
+        }
+        */
     }
 
     private void reportStep(){
 
-        count++;
+        //count++;
 
-        common.log("오늘걸음수 : " + count);
-        myStartForeground(Integer.toString(count));
 
         //if(count%10==0) {
             long now = System.currentTimeMillis();
@@ -181,8 +229,12 @@ public class StepCheckService extends Service implements SensorEventListener {
                 common.putSP("step_record_date", today);
                 common.putSP("step_count", "0");
                 count = 0;
+                count_default=0;
             }
         //}
+
+        common.log("오늘걸음수 : " + count);
+        myStartForeground(Integer.toString(count));
     }
 
     @Override

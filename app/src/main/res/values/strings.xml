@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">WinnerLife</string>
+    <string name="app_name">Winner Life</string>
     <string name="default_url">https://www.winnerlife.co.kr/</string>
     <string name="api_url">https://www.winnerlife.co.kr/app/api.php</string>
     <string name="sns_callback_url">https://www.winnerlife.co.kr/sns/callback_from_app.php</string>
@@ -24,4 +24,5 @@
     <string name="facebook_app_id">601263656973915</string>
 
     <string name="log_tag">TTT</string>
+
 </resources>
