@@ -6,7 +6,7 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
             //storeFile file('/Users/godowondev/Desktop/기타/android_debug_keystore/debug.keystore')
-            storeFile file('/keystore/debug.winnerlifekeystore')
+            storeFile file('/keystore/debug.keystore')
             storePassword 'android'
             }
         release {
