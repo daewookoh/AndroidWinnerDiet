@@ -5,13 +5,15 @@ android {
         debug {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
-            storeFile file('/Users/godowondev/Desktop/기타/android_debug_keystore/debug.keystore')
+            //storeFile file('/Users/godowondev/Desktop/기타/android_debug_keystore/debug.keystore')
+            storeFile file('/keystore/debug.winnerlifekeystore')
             storePassword 'android'
             }
         release {
             keyAlias 'winnerdiet'
             keyPassword 'dkcla0!'
-            storeFile file('/Users/godowondev/Desktop/app_winnerdiet/winnerdiet_android/winnerdietkeystore')
+            //storeFile file('/Users/godowondev/Desktop/app_winnerdiet/winnerdiet_android/winnerdietkeystore')
+            storeFile file('/keystore/winnerlifekeystore')
             storePassword 'dkcla0!'
         }
 
@@ -21,7 +23,7 @@ android {
         applicationId "winnerdiet.android.com"
         minSdkVersion 21
         targetSdkVersion 27
-        versionCode 34
+        versionCode 36
         versionName "2.6"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         multiDexEnabled true
@@ -37,10 +39,6 @@ android {
             signingConfig signingConfigs.debug
         }
     }
-    packagingOptions {
-        exclude 'lib/armeabi/libiwownSleep.so'
-        exclude 'lib/armeabi/libCommand.so'
-     }
     useLibrary 'org.apache.http.legacy'
 }
 

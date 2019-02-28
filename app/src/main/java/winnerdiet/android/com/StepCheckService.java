@@ -185,6 +185,9 @@ public class StepCheckService extends Service implements SensorEventListener {
             if(count_default==0) {
 
                 String step_count = common.getSP("step_count");
+                if(step_count.isEmpty()) {
+                    step_count = "0";
+                }
                 //common.log("A"+step_count);
                 count_default = (int)event.values[0] - Integer.parseInt(step_count);
                 //common.log("B"+String.valueOf(count_default));
