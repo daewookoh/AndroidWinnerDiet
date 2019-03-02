@@ -567,6 +567,7 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
         return File.createTempFile(imageFileName, ".jpg", storageDir);
     }
 
+    
     private class JavaScriptInterface {
 
         @JavascriptInterface
