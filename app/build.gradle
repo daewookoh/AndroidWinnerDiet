@@ -23,8 +23,8 @@ android {
         applicationId "winnerdiet.android.com"
         minSdkVersion 21
         targetSdkVersion 27
-        versionCode 36
-        versionName "2.6"
+        versionCode 37
+        versionName "2.7"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         multiDexEnabled true
     }

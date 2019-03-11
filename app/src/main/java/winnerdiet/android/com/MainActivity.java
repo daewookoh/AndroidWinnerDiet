@@ -27,6 +27,7 @@ import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -645,6 +646,16 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
                     });
                     break;
 
+                case "TEST_RING" :
+                    common.log("TEST_RING");
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            playRing();
+                        }
+                    });
+                    break;
+
                 case "REFRESH_UNABLE" :
                     common.log("REFRESH_UNABLE");
                     runOnUiThread(new Runnable() {
@@ -709,6 +720,12 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
                     break;
 
             }
+        }
+
+        public void playRing(){
+            MediaPlayer mp;
+            mp = MediaPlayer.create(MainActivity.this,R.raw.ring);
+            mp.start();
         }
 
         //SNS 공유
