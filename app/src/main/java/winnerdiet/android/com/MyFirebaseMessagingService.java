@@ -10,6 +10,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
@@ -33,10 +35,9 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
 
-        int PUSH_CHANNEL_ID = 1;
+        int channel_id = 1;
 
         // TODO(developer): Handle FCM messages here.
-        // Not getting messages here? See why this may be: https://goo.gl/39bRNJ
         Log.d(TAG, "From: " + remoteMessage.getFrom());
         long start_time = System.currentTimeMillis();
         common.log(Long.toString(start_time));
@@ -46,68 +47,57 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         //you can get your text message here.
         String body= data.get("body");
         String title= data.get("title");
+        String sound= data.get("sound");
 
-        NotificationCompat.Builder mBuilder = createNotification(title, body);
-        mBuilder.setContentIntent(createPendingIntent());
+        if(sound.equals("ring.mp3"))
+        {
+            channel_id = 2;
+        }
 
-        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        mNotificationManager.notify(PUSH_CHANNEL_ID, mBuilder.build());
+        sendNotification(title, body, channel_id);
 
     }
     // [END receive_message]
 
-    /**
-     * 노티피케이션을 누르면 실행되는 기능을 가져오는 노티피케이션
-     *
-     * 실제 기능을 추가하는 것
-     * @return
-     */
-    private PendingIntent createPendingIntent(){
+    private void sendNotification(String title, String body, int channel_id) {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent,
+                PendingIntent.FLAG_ONE_SHOT);
 
-        Intent resultIntent = new Intent(this, MainActivity.class);
+        String channelId = String.valueOf(channel_id);
 
-        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
-        stackBuilder.addParentStack(MainActivity.class);
-        stackBuilder.addNextIntent(resultIntent);
+        Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        Uri sound2 = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.ring);
 
-        return stackBuilder.getPendingIntent(
-                0,
-                PendingIntent.FLAG_UPDATE_CURRENT
-        );
-    }
+        if(channel_id==2){
+            sound = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.ring);
+        }
 
-    /**
-     * 노티피케이션 빌드
-     * @return
-     */
-    private NotificationCompat.Builder createNotification(String title, String body){
-        Bitmap icon = BitmapFactory.decodeResource(getResources(), R.mipmap.logo_round_512);
+
+        NotificationCompat.Builder notificationBuilder =
+                new NotificationCompat.Builder(this, channelId)
+                        .setSmallIcon(R.mipmap.logo_round_512)
+                        .setContentTitle(title)
+                        .setContentText(body)
+                        .setAutoCancel(true)
+                        .setSound(sound)
+                        .setContentIntent(pendingIntent);
 
         NotificationManager notificationManager =
                 (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            @SuppressLint("WrongConstant")
-            NotificationChannel notificationChannel=new NotificationChannel("PushNotification","n_channel",NotificationManager.IMPORTANCE_MAX);
-            //notificationChannel.setDescription("description");
-            //notificationChannel.setName("PushNotificationOreo");
-            notificationManager.createNotificationChannel(notificationChannel);
+
+        // Since android Oreo notification channel is needed.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel("1", "PUSH 알림", NotificationManager.IMPORTANCE_HIGH);
+            notificationManager.createNotificationChannel(channel);
+
+            NotificationChannel channel2 = new NotificationChannel("2", "간헐적단식", NotificationManager.IMPORTANCE_HIGH);
+            channel2.setSound(sound2,null);
+            notificationManager.createNotificationChannel(channel2);
         }
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
-                .setChannelId("PushNotification")
-                .setSmallIcon(R.mipmap.logo_round_512)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setAutoCancel(true)
-                .setWhen(System.currentTimeMillis())
-                .setDefaults(Notification.DEFAULT_ALL);
-
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP){
-            builder.setCategory(Notification.CATEGORY_MESSAGE)
-                    .setPriority(Notification.PRIORITY_HIGH)
-                    .setVisibility(Notification.VISIBILITY_PUBLIC);
-        }
-        return builder;
+        notificationManager.notify(0 /* ID of notification */, notificationBuilder.build());
     }
 
 }
