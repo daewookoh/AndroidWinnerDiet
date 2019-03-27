@@ -30,6 +30,15 @@ public class Receiver extends BroadcastReceiver {
             }
         }
 
+        if( action.equals(Intent.ACTION_MY_PACKAGE_REPLACED) && step_device.equals("app")){
+            Intent serviceIntent = new Intent(context, StepCheckService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(context, serviceIntent );
+            }else{
+                context.startService(serviceIntent);
+            }
+        }
+
     }
 
 }

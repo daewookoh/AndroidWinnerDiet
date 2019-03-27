@@ -872,7 +872,7 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
                 long userId = result.getId();
                 id = String.valueOf(userId);
                 gender = "";
-                email = result.getKakaoAccount().getEmail();
+                email = "";//result.getKakaoAccount().getEmail();
                 name = result.getNickname();
                 profile_image = result.getProfileImagePath();
 

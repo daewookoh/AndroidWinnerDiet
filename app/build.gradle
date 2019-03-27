@@ -12,7 +12,7 @@ android {
         release {
             keyAlias 'winnerdiet'
             keyPassword 'dkcla0!'
-            storeFile file('/Users/godowondev/Desktop/app_winnerdiet/winnerdiet_android/winnerdietkeystore')
+            //storeFile file('/Users/godowondev/Desktop/app_winnerdiet/winnerdiet_android/winnerdietkeystore')
             storeFile file('/keystore/winnerlifekeystore')
             storePassword 'dkcla0!'
         }
