@@ -10,11 +10,11 @@ android {
             storePassword 'android'
             }
         release {
-            //keyAlias 'winnerdiet'
-            //keyPassword 'dkcla0!'
-            //storeFile file('/Users/godowondev/Desktop/app_winnerdiet/winnerdiet_android/winnerdietkeystore')
-            //storeFile file('/keystore/winnerlifekeystore')
-            //storePassword 'dkcla0!'
+            keyAlias 'winnerdiet'
+            keyPassword 'dkcla0!'
+            storeFile file('/Users/godowondev/Desktop/app_winnerdiet/winnerdiet_android/winnerdietkeystore')
+            storeFile file('/keystore/winnerlifekeystore')
+            storePassword 'dkcla0!'
         }
 
     }
@@ -23,7 +23,7 @@ android {
         applicationId "winnerdiet.android.com"
         minSdkVersion 21
         targetSdkVersion 27
-        versionCode 38
+        versionCode 39
         versionName "2.8"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         multiDexEnabled true
@@ -32,7 +32,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            //signingConfig signingConfigs.release
+            signingConfig signingConfigs.release
         }
         debug {
             debuggable true
