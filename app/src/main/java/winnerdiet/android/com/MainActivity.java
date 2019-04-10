@@ -48,6 +48,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewDebug;
 import android.view.ViewTreeObserver;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
@@ -130,8 +131,11 @@ import java.util.concurrent.TimeUnit;
 import static android.content.ContentValues.TAG;
 
 import com.google.android.gms.fitness.Fitness;
+import com.unity3d.ads.IUnityAdsListener;
+import com.unity3d.ads.UnityAds;
 
-public class MainActivity extends Activity implements RewardedVideoAdListener {
+
+public class MainActivity extends Activity implements RewardedVideoAdListener, SensorEventListener, IUnityAdsListener {
 
     WebView webView;
     ProgressBar progressBar;
@@ -160,6 +164,10 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
     Intent manboService;
     String step_device;
 
+    Sensor stepCountSensor;
+    SensorManager sensorManager;
+
+
     //구글피트니스
     private static final int GOOGLE_FIT_PERMISSIONS_REQUEST_CODE = 0x1001;
 
@@ -169,6 +177,8 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
 
     //카카오로그인
     SessionCallback callback;
+
+    private int last_increase_step;
 
     //sns로그인공용
     String email = "";
@@ -195,7 +205,6 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
 
         //common.putSP("step_device", "app");
         setGPS();
-        setBluetooth();
         startManboService();
 
         webView = (WebView) findViewById(R.id.webViewMain);
@@ -230,58 +239,15 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
         //Intent intent = new Intent(this, ScanBleActivity.class);
         //startActivity(intent);
 
-    }
+        UnityAds.initialize(this, getResources().getString(R.string.unity_id), this);
 
-
-    //블루투스
-    public void setBluetooth(){
-        //step_device = common.getSP("step_device");
-/*
-        if(step_device.equals("coa") && bluetoothService == null) {
-            IntentFilter mainFilter = new IntentFilter("bluetooth");
-            bluetoothService = new Intent(this, BLEService.class);
-            registerReceiver(receiver, mainFilter);
-            startService(bluetoothService);
-        }
-*/
-    }
-
-    public void searchCoa(){
-
-        step_device = common.getSP("step_device");
-
-        //Intent intent = new Intent(this, ScanBleActivity.class);
-        //startActivity(intent);
-/*
-        if(!step_device.equals("coa")) {
-
-            if(bluetoothService == null) {
-                IntentFilter mainFilter = new IntentFilter("bluetooth");
-                bluetoothService = new Intent(this, BLEService.class);
-                registerReceiver(receiver, mainFilter);
-                startService(bluetoothService);
-            }
-
-            if(bluetoothService != null) {
-                IntentFilter mainFilter = new IntentFilter("bluetooth");
-                bluetoothService = new Intent(this, BLEService.class);
-                registerReceiver(receiver, mainFilter);
-                startService(bluetoothService);
-
-                //Intent intent = new Intent(this, DeviceScanActivity.class);
-                Intent intent = new Intent(this, ScanBleActivity.class);
-                startActivity(intent);
-            }
-        }
-*/
-    }
-
-    public void stopBluetoothService(){
-        if(bluetoothService != null) {
-            stopService(bluetoothService);
+        // Sensor
+        if (stepCountSensor == null) {
+            sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+            stepCountSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+            sensorManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_NORMAL);
         }
     }
-    //블루투스 끝
 
     //만보기
     public void startManboService(){
@@ -294,9 +260,13 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
         }
 
         if(step_device.equals("app")) {
-            IntentFilter mainFilter = new IntentFilter("manbo");
-            manboService = new Intent(this, StepCheckService.class);
-            registerReceiver(receiver, mainFilter);
+
+            if(manboService==null) {
+                IntentFilter mainFilter = new IntentFilter("manbo");
+                manboService = new Intent(this, StepCheckService.class);
+                registerReceiver(receiver, mainFilter);
+            }
+
             startService(manboService);
         }
     }
@@ -568,158 +538,179 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
         return File.createTempFile(imageFileName, ".jpg", storageDir);
     }
 
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            Calendar cal = Calendar.getInstance();
+            Date now = new Date();
+            cal.setTime(now);
+            String today = sdf.format(cal.getTime());
+
+            if(step_device.equals("app")) {
+                common.log("updateStepWithDate" + String.valueOf(StepCheckService.count));
+                webView.loadUrl("javascript:updateStepWithDate('" + StepCheckService.count + "','" + today + "');");
+            }
+            else {
+                int cur_step = (int) event.values[0];
+
+                if (last_increase_step == 0) {
+                    last_increase_step = (int) event.values[0];
+                }
+
+                int amount = (int) event.values[0] - last_increase_step;
+
+                //common.log(String.valueOf(amount));
+                webView.loadUrl("javascript:increaseStepWithDate(" + amount + ",'" + today + "');");
+            }
+
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int i) {
+
+    }
+
     private class JavaScriptInterface {
 
         @JavascriptInterface
-        public void appLogin(String data) {
+        public void appLogin(final String data) {
 
             common.log("appLogin() -> " + data);
 
-            switch (data) {
-                case "NAVER":
-                    loginNaver();
-                    break;
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    switch (data) {
 
-                case "KAKAO":
-                    loginKako();
-                    break;
+                        case "NAVER":
+                            loginNaver();
+                            break;
 
-                case "STEP_DATA" :
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
+                        case "KAKAO":
+                            loginKako();
+                            break;
+
+                        case "STEP_DATA" :
+
+                            step_device = common.getSP("step_device");
+                            if(step_device.isEmpty())
+                            {
+                                common.putSP("step_device", "app");
+                                step_device = "app";
+                            }
+
+                            last_increase_step = 0;
+
                             if(common.getSP("step_device").equals("app"))
                             {
                                 try {
-                                    getStepsCountFromApp();
+                                    getStepsCountFromApp(21);
                                 } catch (JSONException e) {
                                     e.printStackTrace();
                                 }
                             }
-                            else if(common.getSP("step_device").equals("coa"))
+                            else
                             {
+                                checkGoogleFit();
+                            }
+                            break;
 
-                                getStepsCountFromCoa();
-
+                        case "STEP_DATA_TODAY" :
+                            if(common.getSP("step_device").equals("app"))
+                            {
+                                try {
+                                    getStepsCountFromApp(1);
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
                             }
                             else
                             {
-                                //getStepsCountFromCoa();
                                 checkGoogleFit();
                             }
-                        }
-                    });
-                    break;
+                            break;
 
-                case "STEP_DEVICE_APP" :
-                    common.log("STEP_DEVICE_APP");
-                    common.putSP("step_device","app");
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
+                        case "STEP_DEVICE_APP" :
+                            common.putSP("step_device","app");
+                            step_device = "app";
                             startManboService();
-                            stopBluetoothService();
-                        }
-                    });
-                    break;
+                            break;
 
-                case "STEP_DEVICE_GOOGLEFIT" :
-                    common.log("STEP_DEVICE_GOOGLEFIT");
-                    common.putSP("step_device","googlefit");
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
+                        case "STEP_DEVICE_GOOGLEFIT" :
+                            common.putSP("step_device","googlefit");
+                            step_device = "googlefit";
                             stopManboService();
-                            stopBluetoothService();
-                        }
-                    });
-                    break;
+                            break;
 
-                case "STEP_DEVICE_COA" :
-                    common.log("STEP_DEVICE_COA");
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            stopManboService();
-                            searchCoa();
-                        }
-                    });
-                    break;
-
-                case "TEST_RING" :
-                    common.log("TEST_RING");
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
+                        case "TEST_RING" :
                             playRing();
-                        }
-                    });
-                    break;
+                            break;
 
-                case "REFRESH_UNABLE" :
-                    common.log("REFRESH_UNABLE");
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
+                        case "REFRESH_UNABLE" :
                             refreshLayout.setEnabled(false);
-                        }
-                    });
-                    break;
+                            break;
 
-                case "CHECK_GOOGLE_FIT_INSTALL" :
-                    if(isInstallApp("com.google.android.apps.fitness")==false){
-
-                        webView.post(new Runnable() {
-                            public void run() {
-                                webView.loadUrl("javascript:openGoogleInstall();");
+                        case "CHECK_GOOGLE_FIT_INSTALL" :
+                            if(isInstallApp("com.google.android.apps.fitness")==false){
+                                webView.post(new Runnable() {
+                                    public void run() {
+                                        webView.loadUrl("javascript:openGoogleInstall();");
+                                    }
+                                });
                             }
-                        });
-                    }
-                    break;
+                            break;
 
-                case "LOAD_FRONT_AD" :
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
+                        case "CHECK_UNITY_REWARD_LOADED" :
+                            if(UnityAds.isReady("rewardedVideo")) {
+                                webView.loadUrl("javascript:rewardLoaded()");
+                            }
+                            break;
+
+                        case "SHOW_UNITY_REWARD_AD" :
+                            if(UnityAds.isReady("rewardedVideo")) {
+                                UnityAds.show(MainActivity.this, "rewardedVideo");
+                            }
+                            break;
+
+                        case "SHOW_UNITY_FRONT_AD" :
+                            if(UnityAds.isReady("Interstitial")) {
+                                UnityAds.show(MainActivity.this, "Interstitial");
+                            }
+                            break;
+
+                        case "LOAD_FRONT_AD" :
                             loadFrontAd();
-                        }
-                    });
-                    break;
+                            break;
 
-                case "LOAD_REWARD_AD" :
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
+                        case "LOAD_REWARD_AD" :
                             loadRewardAd();
-                        }
-                    });
-                    break;
+                            break;
 
-                case "SHOW_REWARD_AD" :
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
+                        case "SHOW_REWARD_AD" :
                             if (rewardAd.isLoaded()) {
                                 rewardAd.show();
                             }
-                        }
-                    });
-                    break;
+                            break;
 
-                case "SHOW_FRONT_AD" :
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
+                        case "SHOW_FRONT_AD" :
                             if (frontAd.isLoaded()) {
                                 frontAd.show();
                             } else {
                                 common.log("The front_ad wasn't loaded yet.");
                             }
-                        }
-                    });
-                    break;
+                            break;
 
-            }
+                        default :
+                            break;
+
+
+                    }
+                }
+            });
+
         }
 
         public void playRing(){
@@ -762,7 +753,9 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
             }
 
         }
+
     }
+
 
     private boolean grantExternalStoragePermission() {
         if (Build.VERSION.SDK_INT >= 23) {
@@ -1043,21 +1036,7 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
         }
     }
 
-
-    public void getStepsCountFromCoa() {
-
-        common.log("getStepsCountFromCoa");
-        //Device.sendAlert("TEST", Constants.ALERT_TYPE_MESSAGE);
-        //sendBroadcast(new Intent("winnerdiet.android.com.ACTION_INCOMING_CALL"));
-/*
-        if(BleApplication.getInstance()!=null) {
-            Boolean a = BleApplication.getInstance().getIBle().isConnected();
-            common.log(String.valueOf(a));
-        }
-  */
-    }
-
-    public void getStepsCountFromApp() throws JSONException {
+    public void getStepsCountFromApp(int days) throws JSONException {
 
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         Calendar cal = Calendar.getInstance();
@@ -1068,8 +1047,8 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
         Calendar endCalendar = new GregorianCalendar();
         endCalendar.setTime(cal.getTime());
 
-        cal.add(Calendar.WEEK_OF_YEAR, -3);
-        //cal.add(Calendar.DAY_OF_YEAR, -2);
+        //cal.add(Calendar.WEEK_OF_YEAR, -3);
+        cal.add(Calendar.DAY_OF_YEAR, -days);
         Calendar calendar = new GregorianCalendar();
         calendar.setTime(cal.getTime());
 
@@ -1399,10 +1378,25 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
     }
 
     @Override
+    protected void onPause() {
+        // Be sure to unregister the sensor when the activity pauses.
+        super.onPause();
+        sensorManager.unregisterListener(this);
+    }
+
+    @Override
     public void onResume() {
         super.onResume();
         //webView.reload(); //카메라 이미지 업로드시 리로드되는 상황이 발생하여 리로드처리하지 않음
 
+        // Sensor
+        if (stepCountSensor == null) {
+            sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+            stepCountSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+            sensorManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_NORMAL);
+        }else {
+            sensorManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_NORMAL);
+        }
         // URL 세팅
         String sUrl = getIntent().getStringExtra("sUrl");
         if(sUrl!=null) {
@@ -1415,7 +1409,8 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
         frontAd = new InterstitialAd(this);
         frontAd.setAdUnitId(getResources().getString(R.string.admob_front_ad));
         AdRequest adRequest = new AdRequest.Builder()
-                //.addTestDevice("301293198DDC43393B39932591A099C8")
+                .addTestDevice("301293198DDC43393B39932591A099C8")
+                .addTestDevice("4A98D900E8A438000FD4534B96A825EA")
                 .build();
         frontAd.loadAd(adRequest);
 
@@ -1458,7 +1453,10 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
         rewardAd = MobileAds.getRewardedVideoAdInstance(this);
         rewardAd.setUserId(getResources().getString(R.string.admob_id));
         rewardAd.setRewardedVideoAdListener(this);
-        AdRequest adRequest = new AdRequest.Builder().build();
+        AdRequest adRequest = new AdRequest.Builder()
+                .addTestDevice("301293198DDC43393B39932591A099C8")
+                .addTestDevice("4A98D900E8A438000FD4534B96A825EA")
+                .build();
         rewardAd.loadAd(getResources().getString(R.string.admob_reward_ad), adRequest);
     }
 
@@ -1502,4 +1500,32 @@ public class MainActivity extends Activity implements RewardedVideoAdListener {
 
     }
     //애드몹(리워드광고 끝)
+
+
+    //Unity Ads
+    @Override
+    public void onUnityAdsReady(String s) {
+        common.log("onUnityAdsReady"+s);
+
+    }
+
+    @Override
+    public void onUnityAdsStart(String s) {
+        common.log("onUnityAdsStart"+s);
+    }
+
+    @Override
+    public void onUnityAdsFinish(String s, UnityAds.FinishState finishState) {
+        common.log("onUnityAdsFinish"+s);
+        if(s.equals("rewardedVideo"))
+        {
+            webView.loadUrl("javascript:rewardComplete()");
+        }
+    }
+
+    @Override
+    public void onUnityAdsError(UnityAds.UnityAdsError unityAdsError, String s) {
+        common.log("onUnityAdsError"+s);
+    }
+    //Unity Ads 끝
 }

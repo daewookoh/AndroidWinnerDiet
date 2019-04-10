@@ -23,8 +23,8 @@ android {
         applicationId "winnerdiet.android.com"
         minSdkVersion 21
         targetSdkVersion 27
-        versionCode 39
-        versionName "2.8"
+        versionCode 41
+        versionName "3.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         multiDexEnabled true
     }
@@ -68,7 +68,7 @@ dependencies {
     implementation 'com.google.android.gms:play-services-auth:15.0.0'
     //애드몹
     implementation 'com.google.android.gms:play-services-ads:15.0.0'
-
+    implementation project(':unity-ads')
 }
 
 apply plugin: 'com.google.gms.google-services'

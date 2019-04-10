@@ -13,6 +13,8 @@
     <string name="admob_reward_ad">ca-app-pub-6876766734666182/4255127327</string>
     <string name="admob_reward_ad_test">ca-app-pub-3940256099942544/5224354917</string>
 
+    <string name="unity_id">3105065</string>
+
     <string name="naver_client_id">odx6G1Dt3eo5YNNsQBH7</string>
     <string name="naver_client_secret">aQqnBSDlM1</string>
 
