@@ -2,21 +2,12 @@ package winnerdiet.android.com;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -24,6 +15,9 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.icu.util.TimeZone;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -33,26 +27,17 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
 import android.os.Message;
-import android.os.Parcelable;
 import android.provider.MediaStore;
 import android.provider.Settings;
-import android.support.annotation.NonNull;
+import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.view.ViewCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
-import android.view.ViewDebug;
-import android.view.ViewTreeObserver;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
-import android.webkit.JsResult;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -70,69 +55,49 @@ import com.google.android.gms.ads.reward.RewardItem;
 import com.google.android.gms.ads.reward.RewardedVideoAd;
 import com.google.android.gms.ads.reward.RewardedVideoAdListener;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.fitness.Fitness;
 import com.google.android.gms.fitness.FitnessOptions;
-import com.google.android.gms.fitness.data.Bucket;
 import com.google.android.gms.fitness.data.DataPoint;
 import com.google.android.gms.fitness.data.DataSet;
-import com.google.android.gms.fitness.data.DataSource;
 import com.google.android.gms.fitness.data.DataType;
 import com.google.android.gms.fitness.data.Field;
 import com.google.android.gms.fitness.request.DataReadRequest;
-import com.google.android.gms.fitness.result.DailyTotalResult;
 import com.google.android.gms.fitness.result.DataReadResponse;
-import com.google.android.gms.fitness.result.DataReadResult;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Task;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.kakao.auth.AuthType;
 import com.kakao.auth.ISessionCallback;
 import com.kakao.auth.Session;
 import com.kakao.network.ErrorResult;
 import com.kakao.usermgmt.UserManagement;
-import com.kakao.usermgmt.callback.MeResponseCallback;
 import com.kakao.usermgmt.callback.MeV2ResponseCallback;
 import com.kakao.usermgmt.response.MeV2Response;
-import com.kakao.usermgmt.response.model.UserProfile;
 import com.kakao.util.exception.KakaoException;
-import com.kakao.util.helper.log.Logger;
 import com.nhn.android.naverlogin.OAuthLogin;
 import com.nhn.android.naverlogin.OAuthLoginHandler;
+import com.unity3d.ads.IUnityAdsListener;
+import com.unity3d.ads.UnityAds;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static android.content.ContentValues.TAG;
-
-import com.google.android.gms.fitness.Fitness;
-import com.unity3d.ads.IUnityAdsListener;
-import com.unity3d.ads.UnityAds;
 
 
 public class MainActivity extends Activity implements RewardedVideoAdListener, SensorEventListener, IUnityAdsListener {
@@ -679,6 +644,15 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
                             if(UnityAds.isReady("Interstitial")) {
                                 UnityAds.show(MainActivity.this, "Interstitial");
                             }
+                            break;
+
+                        case "CHECK_TIMEZONE" :
+                            sendTimezoneInfo();
+                            break;
+
+                        case "RESET_TIMEZONE" :
+                            common.putSP("timezone","");
+                            sendTimezoneInfo();
                             break;
 
                         case "LOAD_FRONT_AD" :
@@ -1375,6 +1349,57 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
 
         return;
 
+    }
+
+    public void sendTimezoneInfo(){
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            TimeZone mytimezone = null;
+            mytimezone = TimeZone.getDefault();
+            String timezone = mytimezone.getID();
+
+            String myTimezone = common.getSP("timezone");
+
+            if(!timezone.isEmpty()) {
+                if (myTimezone.isEmpty() || myTimezone != timezone) {
+
+                    common.putSP("timezone", timezone);
+
+                    String country = null;
+                    LocationManager lm = (LocationManager)getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
+                    Geocoder geocoder = new Geocoder(getApplicationContext());
+                    for(String provider: lm.getAllProviders()) {
+                        @SuppressWarnings("ResourceType") Location location = lm.getLastKnownLocation(provider);
+                        if(location!=null) {
+                            try {
+                                List<Address> addresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
+                                if(addresses != null && addresses.size() > 0) {
+                                    country = addresses.get(0).getCountryName();
+                                    break;
+                                }
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+
+                    common.log(country);
+
+                    if(country.isEmpty()) {
+                        country = timezone;
+                    }
+
+                    String data = "act=setTimezoneInfo"
+                            + "&timezone=" + timezone
+                            + "&country=" + country;
+
+                    String enc_data = Base64.encodeToString(data.getBytes(), 0);
+
+                    common.log("jsNativeToServer(enc_data)");
+                    webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
+                }
+            }
+        }
     }
 
     @Override
