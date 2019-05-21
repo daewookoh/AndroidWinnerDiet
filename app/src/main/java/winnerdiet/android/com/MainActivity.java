@@ -232,7 +232,12 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
                 registerReceiver(receiver, mainFilter);
             }
 
-            startService(manboService);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                getApplicationContext().startForegroundService(manboService);
+            }else{
+                startService(manboService);
+            }
+
         }
     }
 
@@ -647,6 +652,7 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
                             break;
 
                         case "CHECK_TIMEZONE" :
+                            startManboService();
                             sendTimezoneInfo();
                             break;
 
