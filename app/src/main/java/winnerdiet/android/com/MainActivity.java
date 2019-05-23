@@ -33,6 +33,7 @@ import android.provider.Settings;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
+import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
@@ -218,7 +219,7 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
     public void startManboService(){
 
         step_device = common.getSP("step_device");
-        if(step_device.isEmpty())
+        if(TextUtils.isEmpty(step_device))
         {
             common.putSP("step_device", "app");
             step_device = "app";
@@ -233,7 +234,7 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                getApplicationContext().startForegroundService(manboService);
+                startForegroundService(manboService);
             }else{
                 startService(manboService);
             }
@@ -566,7 +567,7 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
                         case "STEP_DATA" :
 
                             step_device = common.getSP("step_device");
-                            if(step_device.isEmpty())
+                            if(TextUtils.isEmpty(step_device))
                             {
                                 common.putSP("step_device", "app");
                                 step_device = "app";
@@ -1048,7 +1049,7 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
             }
             else {
                 String steps_sum = common.getSP(curday);
-                if(steps_sum.isEmpty()) {
+                if(TextUtils.isEmpty(steps_sum)) {
                     steps_sum = "0";
                 }
                 json.put(curday, steps_sum);
@@ -1310,7 +1311,7 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
 
         device_id = common.getSP("device_id");
 
-        if(device_id.isEmpty())
+        if(TextUtils.isEmpty(device_id))
         {
             String new_device_id = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
             String new_device_token = FirebaseInstanceId.getInstance().getToken();
@@ -1360,18 +1361,20 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
     public void sendTimezoneInfo(){
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            TimeZone mytimezone = null;
-            mytimezone = TimeZone.getDefault();
-            String timezone = mytimezone.getID();
+            TimeZone tz = null;
+            tz = TimeZone.getDefault();
+            String timezone = tz.getID();
 
             String myTimezone = common.getSP("timezone");
 
-            if(!timezone.isEmpty()) {
-                if (myTimezone.isEmpty() || myTimezone != timezone) {
+            if(!TextUtils.isEmpty(timezone)) {
+
+                if (TextUtils.isEmpty(myTimezone) || !myTimezone.trim().equals(timezone.trim())) {
 
                     common.putSP("timezone", timezone);
 
-                    String country = null;
+                    String country = "";
+
                     LocationManager lm = (LocationManager)getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
                     Geocoder geocoder = new Geocoder(getApplicationContext());
                     for(String provider: lm.getAllProviders()) {
@@ -1389,9 +1392,7 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
                         }
                     }
 
-                    common.log(country);
-
-                    if(country.isEmpty()) {
+                    if(TextUtils.isEmpty(country)) {
                         country = timezone;
                     }
 
@@ -1403,6 +1404,15 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
 
                     common.log("jsNativeToServer(enc_data)");
                     webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
+
+                    /*
+                    String data2 = "act=debug"
+                            + "&memo=" + memo;
+                    String enc_data2 = Base64.encodeToString(data2.getBytes(), 0);
+
+                    common.log("jsNativeToServer(enc_data)");
+                    webView.loadUrl("javascript:jsNativeToServer('" + enc_data2 + "')");
+                    */
                 }
             }
         }
