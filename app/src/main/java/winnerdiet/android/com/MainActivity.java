@@ -27,6 +27,7 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.Message;
 import android.provider.MediaStore;
 import android.provider.Settings;
@@ -74,6 +75,8 @@ import com.kakao.usermgmt.UserManagement;
 import com.kakao.usermgmt.callback.MeV2ResponseCallback;
 import com.kakao.usermgmt.response.MeV2Response;
 import com.kakao.util.exception.KakaoException;
+import com.mocoplex.adlib.AdlibConfig;
+import com.mocoplex.adlib.AdlibManager;
 import com.nhn.android.naverlogin.OAuthLogin;
 import com.nhn.android.naverlogin.OAuthLoginHandler;
 import com.unity3d.ads.IUnityAdsListener;
@@ -97,6 +100,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.LogRecord;
 
 import static android.content.ContentValues.TAG;
 
@@ -157,6 +161,8 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
     String name = "";
     String birthday = "";
 
+    AdlibManager adlibManager;
+
     //sns공유
     private ContentShare mContentShare;
 
@@ -168,6 +174,16 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
 
         MobileAds.initialize(this,
                 getResources().getString(R.string.admob_id));
+
+        UnityAds.initialize(this, getResources().getString(R.string.unity_id), this);
+
+        adlibManager = new AdlibManager(getResources().getString(R.string.adlib_id));
+        adlibManager.onCreate(this);
+        // 테스트 광고 노출로, 상용일 경우 꼭 제거해야 합니다.
+        //adlibManager.setAdlibTestMode(true);
+
+        // 미디에이션 스케쥴 관련 설정
+        bindPlatform();
 
         //common.putSP("step_device", "app");
         setGPS();
@@ -205,7 +221,6 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
         //Intent intent = new Intent(this, ScanBleActivity.class);
         //startActivity(intent);
 
-        UnityAds.initialize(this, getResources().getString(R.string.unity_id), this);
 
         // Sensor
         if (stepCountSensor == null) {
@@ -213,6 +228,33 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
             stepCountSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
             sensorManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_NORMAL);
         }
+    }
+
+    private void bindPlatform() {
+        // 광고 스케줄링 설정 - 전면, 띠 배너 동일
+        // AdlibManager 생성 및 onCreate() 이후
+        // 광고 요청 이전에 해당 스케쥴 관련 타 플랫폼 정보 등록
+        // 첫번 째 AdlibManager 생성 시에 호출
+        // 광고 subview 의 패키지 경로를 설정 (실제로 작성된 패키지 경로로 변경)
+
+        // 쓰지 않을 광고 플랫폼은 삭제해주세요.
+        /*
+        AdlibConfig.getInstance().bindPlatform("ADMIXER", "winnerdiet.android.com.ads.SubAdlibAdViewAdmixer");
+        AdlibConfig.getInstance().bindPlatform("ADAM", "winnerdiet.android.com.ads.SubAdlibAdViewAdam");
+        AdlibConfig.getInstance().bindPlatform("ADMOB", "winnerdiet.android.com.ads.SubAdlibAdViewAdmob");
+        AdlibConfig.getInstance().bindPlatform("AMAZON", "winnerdiet.android.com.ads.SubAdlibAdViewAmazon");
+        AdlibConfig.getInstance().bindPlatform("MOBCLIX", "winnerdiet.android.com.ads.SubAdlibAdViewMobclix");
+        AdlibConfig.getInstance().bindPlatform("CAULY", "winnerdiet.android.com.ads.SubAdlibAdViewCauly");
+        AdlibConfig.getInstance().bindPlatform("FACEBOOK", "winnerdiet.android.com.ads.SubAdlibAdViewFacebook");
+        AdlibConfig.getInstance().bindPlatform("INMOBI", "winnerdiet.android.com.ads.SubAdlibAdViewInmobi");
+        AdlibConfig.getInstance().bindPlatform("MEZZO", "winnerdiet.android.com.ads.SubAdlibAdViewMezzo");
+        AdlibConfig.getInstance().bindPlatform("MMEDIA", "winnerdiet.android.com.ads.SubAdlibAdViewMMedia");
+        AdlibConfig.getInstance().bindPlatform("MOBFOX", "winnerdiet.android.com.ads.SubAdlibAdViewMobfox");
+        AdlibConfig.getInstance().bindPlatform("MOPUB", "winnerdiet.android.com.ads.SubAdlibAdViewMopub");
+        AdlibConfig.getInstance().bindPlatform("SHALLWEAD", "winnerdiet.android.com.ads.SubAdlibAdViewShallWeAd");
+        AdlibConfig.getInstance().bindPlatform("TAD", "winnerdiet.android.com.ads.SubAdlibAdViewTAD");
+        AdlibConfig.getInstance().bindPlatform("TNK", "winnerdiet.android.com.ads.SubAdlibAdViewTNK");
+        */
     }
 
     //만보기
@@ -382,6 +424,44 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
                 progressBar.setVisibility(View.INVISIBLE);
                 refreshLayout.setRefreshing(false);
                 refreshLayout.setEnabled(true);
+
+
+                /*
+                adlibManager.loadFullInterstitialAd(mContext, new Handler(){
+                    public void handleMessage(Message message) {
+                        try {
+                            switch (message.what) {
+                                case AdlibManager.DID_SUCCEED:
+                                    Log.d("ADLIBr", "[Interstitial] onReceiveAd " + (String) message.obj);
+                                    break;
+
+                                // 전면배너 스케줄링 사용시, 각각의 플랫폼의 수신 실패 이벤트를 받습니다.
+                                case AdlibManager.DID_ERROR:
+                                    Log.d("ADLIBr", "[Interstitial] onFailedToReceiveAd " + (String) message.obj);
+                                    break;
+
+                                // 전면배너 스케줄로 설정되어있는 모든 플랫폼의 수신이 실패했을 경우 이벤트를 받습니다.
+                                case AdlibManager.INTERSTITIAL_FAILED:
+                                    Log.d("ADLIBr", "[Interstitial] All Failed.");
+                                    break;
+
+                                case AdlibManager.INTERSTITIAL_CLOSED:
+                                    Log.d("ADLIBr", "[Interstitial] onClosedAd " + (String) message.obj);
+                                    break;
+                            }
+
+                        } catch (Exception e) {
+                        }
+                    }
+                });
+*/
+
+                /*
+                adlibManager.requestInterstitial();
+                common.log(String.valueOf(adlibManager.isLoadedInterstitial()));
+                adlibManager.loadFullInterstitialAd(mContext);
+*/
+
                 /*
                 if(url.endsWith(getResources().getString(R.string.default_url)))
                 {
@@ -632,6 +712,84 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
                                     }
                                 });
                             }
+                            break;
+
+                        case "CHECK_ADLIB_REWARD_LOADED" :
+
+                            adlibManager.requestInterstitial(new Handler(){
+                                public void handleMessage(Message message) {
+                                    common.log(String.valueOf(message));
+
+                                    try {
+                                        switch (message.what) {
+                                            case AdlibManager.DID_SUCCEED:
+                                                Log.d("TTTADLIBr", "[Interstitial] onReceiveAd " + (String) message.obj);
+                                                webView.loadUrl("javascript:rewardLoaded()");
+                                                break;
+
+                                            // 전면배너 스케줄링 사용시, 각각의 플랫폼의 수신 실패 이벤트를 받습니다.
+                                            case AdlibManager.DID_ERROR:
+                                                Log.d("TTTADLIBr", "[Interstitial] onFailedToReceiveAd " + (String) message.obj);
+                                                break;
+
+                                            // 전면배너 스케줄로 설정되어있는 모든 플랫폼의 수신이 실패했을 경우 이벤트를 받습니다.
+                                            case AdlibManager.INTERSTITIAL_FAILED:
+                                                Log.d("TTTADLIBr", "[Interstitial] All Failed.");
+                                                break;
+
+                                            case AdlibManager.INTERSTITIAL_CLOSED:
+                                                Log.d("TTTADLIBr", "[Interstitial] onClosedAd " + (String) message.obj);
+                                                break;
+                                        }
+
+                                    } catch (Exception e) {
+                                    }
+
+                                }
+                            });
+                            break;
+
+                        case "SHOW_ADLIB_REWARD_AD" :
+                            adlibManager.loadFullInterstitialAd(mContext, new Handler(){
+                                public void handleMessage(Message message) {
+                                    common.log(String.valueOf(message));
+
+                                    try {
+                                        switch (message.what) {
+                                            case 2:
+                                                webView.loadUrl("javascript:rewardComplete()");
+                                                break;
+
+                                            case AdlibManager.DID_SUCCEED:
+                                                Log.d("TTTADLIBr", "[Interstitial] onReceiveAd " + (String) message.obj);
+                                                webView.loadUrl("javascript:rewardLoaded()");
+                                                break;
+
+                                            // 전면배너 스케줄링 사용시, 각각의 플랫폼의 수신 실패 이벤트를 받습니다.
+                                            case AdlibManager.DID_ERROR:
+                                                Log.d("TTTADLIBr", "[Interstitial] onFailedToReceiveAd " + (String) message.obj);
+                                                break;
+
+                                            // 전면배너 스케줄로 설정되어있는 모든 플랫폼의 수신이 실패했을 경우 이벤트를 받습니다.
+                                            case AdlibManager.INTERSTITIAL_FAILED:
+                                                Log.d("TTTADLIBr", "[Interstitial] All Failed.");
+                                                break;
+
+                                            case AdlibManager.INTERSTITIAL_CLOSED:
+                                                webView.loadUrl("javascript:rewardClosed()");
+                                                Log.d("TTTADLIBr", "[Interstitial] onClosedAd " + (String) message.obj);
+                                                break;
+                                        }
+
+                                    } catch (Exception e) {
+                                    }
+
+                                }
+                            });
+                            break;
+
+                        case "SHOW_ADLIB_FRONT_AD" :
+                            adlibManager.loadFullInterstitialAd(mContext);
                             break;
 
                         case "CHECK_UNITY_REWARD_LOADED" :
