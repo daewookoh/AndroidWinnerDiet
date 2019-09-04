@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -47,15 +48,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ProgressBar;
 import android.widget.Toast;
-
 import com.facebook.share.widget.ShareDialog;
-import com.google.android.gms.ads.AdListener;
-import com.google.android.gms.ads.AdRequest;
-import com.google.android.gms.ads.InterstitialAd;
-import com.google.android.gms.ads.MobileAds;
-import com.google.android.gms.ads.reward.RewardItem;
-import com.google.android.gms.ads.reward.RewardedVideoAd;
-import com.google.android.gms.ads.reward.RewardedVideoAdListener;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.fitness.Fitness;
 import com.google.android.gms.fitness.FitnessOptions;
@@ -79,8 +72,19 @@ import com.mocoplex.adlib.AdlibConfig;
 import com.mocoplex.adlib.AdlibManager;
 import com.nhn.android.naverlogin.OAuthLogin;
 import com.nhn.android.naverlogin.OAuthLoginHandler;
+
+/*
+import com.google.android.gms.ads.AdListener;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.InterstitialAd;
+import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.ads.reward.RewardItem;
+import com.google.android.gms.ads.reward.RewardedVideoAd;
+import com.google.android.gms.ads.reward.RewardedVideoAdListener;
+
 import com.unity3d.ads.IUnityAdsListener;
 import com.unity3d.ads.UnityAds;
+*/
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -105,7 +109,9 @@ import java.util.logging.LogRecord;
 import static android.content.ContentValues.TAG;
 
 
-public class MainActivity extends Activity implements RewardedVideoAdListener, SensorEventListener, IUnityAdsListener {
+//public class MainActivity extends Activity implements RewardedVideoAdListener, SensorEventListener, IUnityAdsListener {
+
+public class MainActivity extends Activity implements SensorEventListener {
 
     WebView webView;
     ProgressBar progressBar;
@@ -113,8 +119,8 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
     public static Context mContext;
     Common common = new Common(this);
 
-    private InterstitialAd frontAd;
-    private RewardedVideoAd rewardAd;
+    //private InterstitialAd frontAd;
+    //private RewardedVideoAd rewardAd;
 
     Intent bluetoothService;
 
@@ -172,10 +178,9 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
         setContentView(R.layout.activity_main);
         mContext = this;
 
-        MobileAds.initialize(this,
-                getResources().getString(R.string.admob_id));
+        //MobileAds.initialize(this, getResources().getString(R.string.admob_id));
 
-        UnityAds.initialize(this, getResources().getString(R.string.unity_id), this);
+        //UnityAds.initialize(this, getResources().getString(R.string.unity_id), this);
 
         adlibManager = new AdlibManager(getResources().getString(R.string.adlib_id));
         adlibManager.onCreate(this);
@@ -185,9 +190,15 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
         // 미디에이션 스케쥴 관련 설정
         bindPlatform();
 
+
+        if (Build.VERSION.SDK_INT != Build.VERSION_CODES.O) {
+            //API26(Android 8.0) 에서 portrait 설정시 adlib광고 오류생김
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        }
+
+
         //common.putSP("step_device", "app");
         setGPS();
-        startManboService();
 
         webView = (WebView) findViewById(R.id.webViewMain);
         progressBar = (ProgressBar) findViewById(R.id.progressBarMain);
@@ -221,12 +232,32 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
         //Intent intent = new Intent(this, ScanBleActivity.class);
         //startActivity(intent);
 
+        startManboService();
 
         // Sensor
         if (stepCountSensor == null) {
-            sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-            stepCountSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
-            sensorManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_NORMAL);
+            PackageManager pm = this.getPackageManager();
+            final boolean step_sensor_exist = pm.hasSystemFeature(PackageManager.
+                    FEATURE_SENSOR_STEP_DETECTOR
+            );
+
+            if (step_sensor_exist) {
+                sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+                stepCountSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+                sensorManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_NORMAL);
+
+            }
+        }
+
+    }
+
+    @Override
+    public void setRequestedOrientation(int requestedOrientation) {
+        try {
+            super.setRequestedOrientation(requestedOrientation);
+        } catch (IllegalStateException e) {
+            // Only fullscreen activities can request orientation
+            e.printStackTrace();
         }
     }
 
@@ -238,9 +269,11 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
         // 광고 subview 의 패키지 경로를 설정 (실제로 작성된 패키지 경로로 변경)
 
         // 쓰지 않을 광고 플랫폼은 삭제해주세요.
+
+
         /*
-        AdlibConfig.getInstance().bindPlatform("ADMIXER", "winnerdiet.android.com.ads.SubAdlibAdViewAdmixer");
         AdlibConfig.getInstance().bindPlatform("ADAM", "winnerdiet.android.com.ads.SubAdlibAdViewAdam");
+        AdlibConfig.getInstance().bindPlatform("ADMIXER", "winnerdiet.android.com.ads.SubAdlibAdViewAdmixer");
         AdlibConfig.getInstance().bindPlatform("ADMOB", "winnerdiet.android.com.ads.SubAdlibAdViewAdmob");
         AdlibConfig.getInstance().bindPlatform("AMAZON", "winnerdiet.android.com.ads.SubAdlibAdViewAmazon");
         AdlibConfig.getInstance().bindPlatform("MOBCLIX", "winnerdiet.android.com.ads.SubAdlibAdViewMobclix");
@@ -261,6 +294,7 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
     public void startManboService(){
 
         step_device = common.getSP("step_device");
+
         if(TextUtils.isEmpty(step_device))
         {
             common.putSP("step_device", "app");
@@ -268,6 +302,19 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
         }
 
         if(step_device.equals("app")) {
+
+            PackageManager pm = this.getPackageManager();
+            final boolean step_sensor_exist = pm.hasSystemFeature(PackageManager.
+                    FEATURE_SENSOR_STEP_DETECTOR
+            );
+
+            if(!step_sensor_exist)
+            {
+                webView.loadUrl("javascript:hasNoStepSensor();");
+                common.putSP("step_device", "googlefit");
+                stopManboService();
+                return;
+            }
 
             if(manboService==null) {
                 IntentFilter mainFilter = new IntentFilter("manbo");
@@ -424,7 +471,6 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
                 progressBar.setVisibility(View.INVISIBLE);
                 refreshLayout.setRefreshing(false);
                 refreshLayout.setEnabled(true);
-
 
                 /*
                 adlibManager.loadFullInterstitialAd(mContext, new Handler(){
@@ -768,11 +814,19 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
                                             // 전면배너 스케줄링 사용시, 각각의 플랫폼의 수신 실패 이벤트를 받습니다.
                                             case AdlibManager.DID_ERROR:
                                                 Log.d("TTTADLIBr", "[Interstitial] onFailedToReceiveAd " + (String) message.obj);
+                                                /*
+                                                if(UnityAds.isReady("rewardedVideo")) {
+                                                    //UnityAds.show(MainActivity.this, "rewardedVideo");
+                                                }
+                                                */
                                                 break;
 
                                             // 전면배너 스케줄로 설정되어있는 모든 플랫폼의 수신이 실패했을 경우 이벤트를 받습니다.
                                             case AdlibManager.INTERSTITIAL_FAILED:
                                                 Log.d("TTTADLIBr", "[Interstitial] All Failed.");
+                                                /*if(UnityAds.isReady("rewardedVideo")) {
+                                                    UnityAds.show(MainActivity.this, "rewardedVideo");
+                                                }*/
                                                 break;
 
                                             case AdlibManager.INTERSTITIAL_CLOSED:
@@ -789,25 +843,55 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
                             break;
 
                         case "SHOW_ADLIB_FRONT_AD" :
-                            adlibManager.loadFullInterstitialAd(mContext);
+                            adlibManager.loadFullInterstitialAd(mContext, new Handler(){
+                                public void handleMessage(Message message) {
+                                    common.log(String.valueOf(message));
+
+                                    try {
+                                        switch (message.what) {
+                                            // 전면배너 스케줄링 사용시, 각각의 플랫폼의 수신 실패 이벤트를 받습니다.
+                                            case AdlibManager.DID_ERROR:
+                                                Log.d("TTTADLIBr", "[Interstitial] onFailedToReceiveAd " + (String) message.obj);
+                                                /*if(UnityAds.isReady("Interstitial")) {
+                                                    UnityAds.show(MainActivity.this, "Interstitial");
+                                                }*/
+                                                break;
+
+                                            // 전면배너 스케줄로 설정되어있는 모든 플랫폼의 수신이 실패했을 경우 이벤트를 받습니다.
+                                            case AdlibManager.INTERSTITIAL_FAILED:
+                                                Log.d("TTTADLIBr", "[Interstitial] All Failed.");
+                                                /*if(UnityAds.isReady("Interstitial")) {
+                                                    UnityAds.show(MainActivity.this, "Interstitial");
+                                                }*/
+                                                break;
+                                        }
+
+                                    } catch (Exception e) {
+                                    }
+
+                                }
+                            });
                             break;
 
                         case "CHECK_UNITY_REWARD_LOADED" :
+                            /*
                             if(UnityAds.isReady("rewardedVideo")) {
                                 webView.loadUrl("javascript:rewardLoaded()");
-                            }
+                            }*/
                             break;
 
                         case "SHOW_UNITY_REWARD_AD" :
+                            /*
                             if(UnityAds.isReady("rewardedVideo")) {
                                 UnityAds.show(MainActivity.this, "rewardedVideo");
-                            }
+                            }*/
                             break;
 
                         case "SHOW_UNITY_FRONT_AD" :
+                            /*
                             if(UnityAds.isReady("Interstitial")) {
                                 UnityAds.show(MainActivity.this, "Interstitial");
-                            }
+                            }*/
                             break;
 
                         case "CHECK_TIMEZONE" :
@@ -821,25 +905,27 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
                             break;
 
                         case "LOAD_FRONT_AD" :
-                            loadFrontAd();
+                            //loadFrontAd();
                             break;
 
                         case "LOAD_REWARD_AD" :
-                            loadRewardAd();
+                            //loadRewardAd();
                             break;
 
                         case "SHOW_REWARD_AD" :
+                            /*
                             if (rewardAd.isLoaded()) {
                                 rewardAd.show();
-                            }
+                            }*/
                             break;
 
                         case "SHOW_FRONT_AD" :
+                            /*
                             if (frontAd.isLoaded()) {
                                 frontAd.show();
                             } else {
                                 common.log("The front_ad wasn't loaded yet.");
-                            }
+                            }*/
                             break;
 
                         default :
@@ -1028,6 +1114,7 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
     protected void onDestroy() {
         super.onDestroy();
         Session.getCurrentSession().removeCallback(callback);
+        adlibManager.onDestroy(mContext);
     }
     //카카오 로그인 끝
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1604,6 +1691,7 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
 
     }
 
+    /*
     public void loadFrontAd() {
         frontAd = new InterstitialAd(this);
         frontAd.setAdUnitId(getResources().getString(R.string.admob_front_ad));
@@ -1645,8 +1733,10 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
             }
         });
     }
+    */
 
     //애드몹(리워드광고)
+    /*
     public void loadRewardAd() {
         common.log("loadRewardAd");
         rewardAd = MobileAds.getRewardedVideoAdInstance(this);
@@ -1698,10 +1788,12 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
     public void onRewardedVideoCompleted() {
 
     }
+    */
     //애드몹(리워드광고 끝)
 
 
     //Unity Ads
+    /*
     @Override
     public void onUnityAdsReady(String s) {
         common.log("onUnityAdsReady"+s);
@@ -1726,5 +1818,6 @@ public class MainActivity extends Activity implements RewardedVideoAdListener, S
     public void onUnityAdsError(UnityAds.UnityAdsError unityAdsError, String s) {
         common.log("onUnityAdsError"+s);
     }
+    */
     //Unity Ads 끝
 }

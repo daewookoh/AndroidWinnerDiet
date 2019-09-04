@@ -1,0 +1,4 @@
+configurations.maybeCreate("default")
+artifacts.add("default", file('CaulySDK-3.4.23.jar'))
+dependencies {
+}
