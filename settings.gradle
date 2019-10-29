@@ -1,1 +1,1 @@
-include ':app', ':adlibr.5.1.0.0'
+include ':app', ':adlibr.5.0.0.2'

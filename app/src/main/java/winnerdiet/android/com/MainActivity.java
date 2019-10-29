@@ -4,8 +4,10 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
@@ -24,6 +26,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.net.http.SslError;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -41,6 +44,7 @@ import android.util.Log;
 import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.SslErrorHandler;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -106,6 +110,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.LogRecord;
 
+
 import static android.content.ContentValues.TAG;
 
 
@@ -118,6 +123,9 @@ public class MainActivity extends Activity implements SensorEventListener {
     SwipeRefreshLayout refreshLayout;
     public static Context mContext;
     Common common = new Common(this);
+
+    boolean step_sensor_exist;
+    boolean step_accelerometer_exist;
 
     //private InterstitialAd frontAd;
     //private RewardedVideoAd rewardAd;
@@ -232,20 +240,19 @@ public class MainActivity extends Activity implements SensorEventListener {
         //Intent intent = new Intent(this, ScanBleActivity.class);
         //startActivity(intent);
 
+        PackageManager pm = this.getPackageManager();
+        step_sensor_exist = pm.hasSystemFeature(PackageManager.FEATURE_SENSOR_STEP_DETECTOR);
+        step_accelerometer_exist = pm.hasSystemFeature(PackageManager.FEATURE_SENSOR_ACCELEROMETER);
+
         startManboService();
 
         // Sensor
         if (stepCountSensor == null) {
-            PackageManager pm = this.getPackageManager();
-            final boolean step_sensor_exist = pm.hasSystemFeature(PackageManager.
-                    FEATURE_SENSOR_STEP_DETECTOR
-            );
 
             if (step_sensor_exist) {
                 sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
                 stepCountSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
                 sensorManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_NORMAL);
-
             }
         }
 
@@ -303,15 +310,12 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         if(step_device.equals("app")) {
 
-            PackageManager pm = this.getPackageManager();
-            final boolean step_sensor_exist = pm.hasSystemFeature(PackageManager.
-                    FEATURE_SENSOR_STEP_DETECTOR
-            );
-
+            //if(!step_sensor_exist && !step_accelerometer_exist)
             if(!step_sensor_exist)
             {
-                webView.loadUrl("javascript:hasNoStepSensor();");
+                doJavascript("javascript:hasNoStepSensor();");
                 common.putSP("step_device", "googlefit");
+                step_device = "googlefit";
                 stopManboService();
                 return;
             }
@@ -410,6 +414,9 @@ public class MainActivity extends Activity implements SensorEventListener {
         set.setSupportMultipleWindows(true); // <a>태그에서 target="_blank" 일 경우 외부 브라우저를 띄움
         set.setUserAgentString(webView.getSettings().getUserAgentString() + getResources().getString(R.string.user_agent));
         set.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW); // KCP 결제
+        set.setGeolocationEnabled(true);
+        set.setDomStorageEnabled(true); //Javascript error 무시
+
         set.setTextZoom(100);
 
         //KCP 결제용 쿠키처리
@@ -418,6 +425,26 @@ public class MainActivity extends Activity implements SensorEventListener {
         cookieManager.setAcceptThirdPartyCookies(webView, true);
 
         webView.setWebViewClient(new WebViewClient() {
+
+            @Override
+            public void onReceivedSslError(WebView view, final SslErrorHandler handler, SslError error) {
+                final AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
+                builder.setMessage("SSL 경고 : 계속하시겠습니까?");
+                builder.setPositiveButton("continue", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        handler.proceed();
+                    }
+                });
+                builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        handler.cancel();
+                    }
+                });
+                final AlertDialog dialog = builder.create();
+                dialog.show();
+            }
 
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
 
@@ -462,6 +489,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                                       android.graphics.Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
                 progressBar.setVisibility(View.VISIBLE);
+                clearApplicationData(mContext);
                 //refreshLayout.setRefreshing(true);
             }
 
@@ -647,7 +675,10 @@ public class MainActivity extends Activity implements SensorEventListener {
 
             if(step_device.equals("app")) {
                 common.log("updateStepWithDate" + String.valueOf(StepCheckService.count));
-                webView.loadUrl("javascript:updateStepWithDate('" + StepCheckService.count + "','" + today + "');");
+
+
+                doJavascript("javascript:updateStepWithDate('" + StepCheckService.count + "','" + today + "');");
+
             }
             else {
                 int cur_step = (int) event.values[0];
@@ -659,10 +690,21 @@ public class MainActivity extends Activity implements SensorEventListener {
                 int amount = (int) event.values[0] - last_increase_step;
 
                 //common.log(String.valueOf(amount));
-                webView.loadUrl("javascript:increaseStepWithDate(" + amount + ",'" + today + "');");
+                doJavascript("javascript:increaseStepWithDate(" + amount + ",'" + today + "');");
             }
 
         }
+    }
+
+    public void doJavascript(final String msg){
+
+        webView.post(new Runnable() {
+            @Override
+            public void run() {
+                webView.loadUrl(msg);
+            }
+        });
+
     }
 
     @Override
@@ -709,7 +751,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                                     e.printStackTrace();
                                 }
                             }
-                            else
+                            else if(common.getSP("step_device").equals("googlefit"))
                             {
                                 checkGoogleFit();
                             }
@@ -724,7 +766,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                                     e.printStackTrace();
                                 }
                             }
-                            else
+                            else if(common.getSP("step_device").equals("googlefit"))
                             {
                                 checkGoogleFit();
                             }
@@ -742,6 +784,12 @@ public class MainActivity extends Activity implements SensorEventListener {
                             stopManboService();
                             break;
 
+                        case "STEP_DEVICE_SMARTHELPER" :
+                            common.putSP("step_device","smarthelper");
+                            step_device = "smarthelper";
+                            stopManboService();
+                            break;
+
                         case "TEST_RING" :
                             playRing();
                             break;
@@ -752,11 +800,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
                         case "CHECK_GOOGLE_FIT_INSTALL" :
                             if(isInstallApp("com.google.android.apps.fitness")==false){
-                                webView.post(new Runnable() {
-                                    public void run() {
-                                        webView.loadUrl("javascript:openGoogleInstall();");
-                                    }
-                                });
+                                doJavascript("javascript:openGoogleInstall();");
                             }
                             break;
 
@@ -770,7 +814,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                                         switch (message.what) {
                                             case AdlibManager.DID_SUCCEED:
                                                 Log.d("TTTADLIBr", "[Interstitial] onReceiveAd " + (String) message.obj);
-                                                webView.loadUrl("javascript:rewardLoaded()");
+                                                doJavascript("javascript:rewardLoaded()");
                                                 break;
 
                                             // 전면배너 스케줄링 사용시, 각각의 플랫폼의 수신 실패 이벤트를 받습니다.
@@ -803,12 +847,12 @@ public class MainActivity extends Activity implements SensorEventListener {
                                     try {
                                         switch (message.what) {
                                             case 2:
-                                                webView.loadUrl("javascript:rewardComplete()");
+                                                doJavascript("javascript:rewardComplete()");
                                                 break;
 
                                             case AdlibManager.DID_SUCCEED:
                                                 Log.d("TTTADLIBr", "[Interstitial] onReceiveAd " + (String) message.obj);
-                                                webView.loadUrl("javascript:rewardLoaded()");
+                                                doJavascript("javascript:rewardLoaded()");
                                                 break;
 
                                             // 전면배너 스케줄링 사용시, 각각의 플랫폼의 수신 실패 이벤트를 받습니다.
@@ -830,7 +874,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                                                 break;
 
                                             case AdlibManager.INTERSTITIAL_CLOSED:
-                                                webView.loadUrl("javascript:rewardClosed()");
+                                                doJavascript("javascript:rewardClosed()");
                                                 Log.d("TTTADLIBr", "[Interstitial] onClosedAd " + (String) message.obj);
                                                 break;
                                         }
@@ -876,7 +920,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                         case "CHECK_UNITY_REWARD_LOADED" :
                             /*
                             if(UnityAds.isReady("rewardedVideo")) {
-                                webView.loadUrl("javascript:rewardLoaded()");
+                                doJavascript("javascript:rewardLoaded()");
                             }*/
                             break;
 
@@ -1306,7 +1350,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         String data = "act=setStepInfo&step_data="+json.toString();
         String enc_data = Base64.encodeToString(data.getBytes(), 0);
         common.log("jsNativeToServer(enc_data) : step_data");
-        webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
+        doJavascript("javascript:jsNativeToServer('" + enc_data + "')");
     }
 
     public void getStepsCount() {
@@ -1368,7 +1412,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                         String data = "act=setStepInfo&step_data="+json.toString();
                         String enc_data = Base64.encodeToString(data.getBytes(), 0);
                         common.log("jsNativeToServer(enc_data) : step_data");
-                        webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
+                        doJavascript("javascript:jsNativeToServer('" + enc_data + "')");
 
                     }
                 });
@@ -1451,7 +1495,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                         String data = "act=setStepInfo&step_data="+json.toString();
                         String enc_data = Base64.encodeToString(data.getBytes(), 0);
                         common.log("jsNativeToServer(enc_data) : step_data");
-                        webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
+                        doJavascript("javascript:jsNativeToServer('" + enc_data + "')");
 
                     }
                 });
@@ -1513,7 +1557,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                         String data = "act=setStepInfo&step_data="+json.toString();
                         String enc_data = Base64.encodeToString(data.getBytes(), 0);
                         common.log("jsNativeToServer(enc_data) : step_data");
-                        webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
+                        doJavascript("javascript:jsNativeToServer('" + enc_data + "')");
 
                     }
                 });
@@ -1597,7 +1641,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         String enc_data = Base64.encodeToString(data.getBytes(), 0);
 
         common.log("jsNativeToServer(enc_data)");
-        webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
+        doJavascript("javascript:jsNativeToServer('" + enc_data + "')");
 
         return;
 
@@ -1648,7 +1692,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     String enc_data = Base64.encodeToString(data.getBytes(), 0);
 
                     common.log("jsNativeToServer(enc_data)");
-                    webView.loadUrl("javascript:jsNativeToServer('" + enc_data + "')");
+                    doJavascript("javascript:jsNativeToServer('" + enc_data + "')");
 
                     /*
                     String data2 = "act=debug"
@@ -1656,7 +1700,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     String enc_data2 = Base64.encodeToString(data2.getBytes(), 0);
 
                     common.log("jsNativeToServer(enc_data)");
-                    webView.loadUrl("javascript:jsNativeToServer('" + enc_data2 + "')");
+                    doJavascript("javascript:jsNativeToServer('" + enc_data2 + "')");
                     */
                 }
             }
@@ -1667,12 +1711,14 @@ public class MainActivity extends Activity implements SensorEventListener {
     protected void onPause() {
         // Be sure to unregister the sensor when the activity pauses.
         super.onPause();
+        webView.pauseTimers();
         sensorManager.unregisterListener(this);
     }
 
     @Override
     public void onResume() {
         super.onResume();
+        webView.resumeTimers();
         //webView.reload(); //카메라 이미지 업로드시 리로드되는 상황이 발생하여 리로드처리하지 않음
 
         // Sensor
@@ -1690,6 +1736,52 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
 
     }
+
+    public static void clearApplicationData(Context context) {
+        File cache = context.getCacheDir();
+        File appDir = new File(cache.getParent());
+
+        long size = (long) getDirSize(appDir);
+
+        // 캐시(Cache) 용량이 20Mb 이상일 경우 삭제
+        if (appDir.exists() && size > 20000000) {
+            String[] children = appDir.list();
+            for (String s : children) {
+
+                //shared_prefs 파일은 지우지 않도록 설정
+                if(s.equals("shared_prefs")) continue;
+
+                deleteDir(new File(appDir, s));
+                Log.d("TTT", "File /data/data/"+context.getPackageName()+"/" + s + size + " DELETED");
+            }
+        }
+    }
+
+    public static long getDirSize(File dir){
+        long size = 0;
+        for (File file : dir.listFiles()) {
+            if (file != null && file.isDirectory()) {
+                size += getDirSize(file);
+            } else if (file != null && file.isFile()) {
+                size += file.length();
+            }
+        }
+        return size;
+    }
+
+    private static boolean deleteDir(File dir) {
+        if (dir != null && dir.isDirectory()) {
+            String[] children = dir.list();
+            for (int i = 0; i < children.length; i++) {
+                boolean success = deleteDir(new File(dir, children[i]));
+                if (!success) {
+                    return false;
+                }
+            }
+        }
+        return dir.delete();
+    }
+
 
     /*
     public void loadFrontAd() {
@@ -1752,7 +1844,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     @Override
     public void onRewardedVideoAdLoaded() {
         common.log("rewardAdLoaded");
-        webView.loadUrl("javascript:rewardLoaded()");
+        doJavascript("javascript:rewardLoaded()");
     }
 
     @Override
@@ -1771,7 +1863,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     @Override
     public void onRewarded(RewardItem rewardItem) {
         common.log("onRewarded");
-        webView.loadUrl("javascript:rewardComplete()");
+        doJavascript("javascript:rewardComplete()");
     }
 
     @Override
@@ -1810,7 +1902,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         common.log("onUnityAdsFinish"+s);
         if(s.equals("rewardedVideo"))
         {
-            webView.loadUrl("javascript:rewardComplete()");
+            doJavascript("javascript:rewardComplete()");
         }
     }
 

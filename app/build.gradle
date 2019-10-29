@@ -23,8 +23,8 @@ android {
         applicationId "winnerdiet.android.com"
         minSdkVersion 21
         targetSdkVersion 28
-        versionCode 50
-        versionName "3.23"
+        versionCode 59
+        versionName "3.30"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         multiDexEnabled true
     }
@@ -75,8 +75,8 @@ dependencies {
     //UNITY
     //implementation project(':unity-ads')
     //ADLIB
-    implementation project(':adlibr.5.1.0.0')
     implementation 'com.android.support:multidex:1.0.3'
+    implementation project(path: ':adlibr.5.0.0.2')
 }
 
 apply plugin: 'com.google.gms.google-services'

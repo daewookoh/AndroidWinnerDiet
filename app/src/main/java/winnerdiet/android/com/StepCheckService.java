@@ -61,9 +61,9 @@ public class StepCheckService extends Service implements SensorEventListener {
     private static final int VEL_RING_SIZE = 10;
 
     // change this threshold according to your sensitivity preferences
-    private static final float STEP_THRESHOLD = 12f;
+    private static final float STEP_THRESHOLD = 11f;
 
-    private static final int STEP_DELAY_NS = 10000000;
+    private static final int STEP_DELAY_NS = 11000000;
 
     private int accelRingCounter = 0;
     private float[] accelRingX = new float[ACCEL_RING_SIZE];
@@ -88,7 +88,7 @@ public class StepCheckService extends Service implements SensorEventListener {
         step_accelerometer_exist = pm.hasSystemFeature(PackageManager.FEATURE_SENSOR_ACCELEROMETER);
 
         //if(!step_sensor_exist && !step_accelerometer_exist)
-        if(!step_accelerometer_exist)
+        if(!step_sensor_exist)
         {
             return;
         }
@@ -184,15 +184,16 @@ public class StepCheckService extends Service implements SensorEventListener {
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
 
-        /*
         if (stepCountSensor != null) {
             sensorManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_NORMAL);
         }
-        */
 
+        /*
         if (accelerometerSensor != null) {
             sensorManager.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_NORMAL);
         }
+        */
+
         /*
         if (stepDetectSensor != null) {
             sensorManager.registerListener(this, stepDetectSensor, SensorManager.SENSOR_DELAY_NORMAL);
@@ -208,7 +209,6 @@ public class StepCheckService extends Service implements SensorEventListener {
         if (sensorManager != null) {
             sensorManager.unregisterListener(this);
             count = 0;
-            //count1 = 0;
         }
     }
 
@@ -217,12 +217,12 @@ public class StepCheckService extends Service implements SensorEventListener {
 
         //common.log("onSensorchanged");
 
-        /*
+
         if (step_sensor_exist && event.sensor.getType() == Sensor.TYPE_STEP_COUNTER)
         {
             if(count_default==0) {
 
-                String step_count = common.getSP("tep_count");
+                String step_count = common.getSP("step_count");
                 if(step_count.isEmpty()) {
                     step_count = "0";
                 }
@@ -233,10 +233,10 @@ public class StepCheckService extends Service implements SensorEventListener {
 
             count = (int)event.values[0] - count_default;
             //common.log("C"+String.valueOf(count));
-            //reportStep();
+            reportStep();
         }
-        */
 
+        /*
         if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
 
             if(count==0) {
@@ -253,6 +253,7 @@ public class StepCheckService extends Service implements SensorEventListener {
 
             calculate(event.timestamp, event.values[0], event.values[1], event.values[2]);
         }
+        */
 
         /*
         if (event.sensor.getType() == Sensor.TYPE_STEP_DETECTOR) {
